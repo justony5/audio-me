@@ -1,0 +1,9 @@
+bin/
+diagnostics.txt
+obj/
+dist/
+.vs/
+*.user
+*.suo
+*.tmp
+settings.xml
