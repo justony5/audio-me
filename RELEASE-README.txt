@@ -1,4 +1,4 @@
-Audio Me 1.1.1 beta - Windows x64
+Audio Me 1.1.2 beta - Windows x64
 
 Portable Windows audio switching. Requires Windows 10/11 x64 and .NET Framework 4.8.
 Extract and run AudioMe.exe. No installer or administrator access is needed.
@@ -22,6 +22,8 @@ The pencil adds a local display alias; hardware names remain in tooltips.
 Basic keyboard navigation and accessibility remain free.
 
 Closing hides the app to the tray. Launch again to reopen. Tray menu > Exit quits.
+Right-click the tray icon to switch saved profiles directly. The active profile is
+checked; unavailable profiles are disabled. Hidden-window switches show tray feedback.
 Start with Windows uses a current-user entry; toggle off/on after moving the EXE.
 Settings: %LOCALAPPDATA%\AudioSwitch\settings.xml. Old groups migrate automatically.
 Unreadable settings are retained; saving pauses until explicit backup/reset.

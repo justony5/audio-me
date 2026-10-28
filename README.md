@@ -49,6 +49,7 @@ Old saved groups migrate automatically to profiles using the same stored endpoin
 Requires **Windows 10/11 x64 and .NET Framework 4.8**. Windows 11 includes the runtime. Extract a portable ZIP and open `AudioMe.exe`; no installer or administrator access is required. The icon is embedded, so the EXE can be moved by itself.
 
 - Closing the window hides it to the tray. Launch it again or use its tray icon to reopen it. Right-click the tray icon and select **Exit** to quit; exit is deferred while switching is in progress.
+- Right-click the tray icon to activate a saved profile directly. The active profile is checked; unavailable profiles are disabled with a missing-device tooltip. Profile switching uses the same availability, verification and restoration safeguards as the main window. Switching feedback appears as a tray notification while the window is hidden (subject to Windows notification settings).
 - `--tray` starts it hidden. **Start with Windows** writes a current-user startup entry pointing to this EXE. If you move it, turn that option off and on from its new location.
 - Settings live at `%LOCALAPPDATA%\AudioSwitch\settings.xml`; the old folder name is retained for compatibility. The app is portable to run, but preferences are stored per user outside the EXE folder.
 - On a settings-load failure, preserve or repair the original file before restarting, or choose **Back up original and reset**. Its recovery backup path is reported after reset. Normal saves keep `settings.xml.bak`.

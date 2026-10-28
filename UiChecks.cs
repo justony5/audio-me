@@ -9,10 +9,10 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using AudioSwitch;
 class FakeAudio : IAudioService {
-    public AudioSnapshot Data=new AudioSnapshot(); public int Writes;
+    public AudioSnapshot Data=new AudioSnapshot(); public int Writes; public Endpoint[] LastApplied;
     public ManualResetEvent ReleaseSwitch=new ManualResetEvent(false);
     public AudioSnapshot Read() { return Data; }
-    public void Apply(Endpoint[] devices) { Interlocked.Increment(ref Writes); ReleaseSwitch.WaitOne(15000); throw new InvalidOperationException("Simulated failure; no hardware was changed."); }
+    public void Apply(Endpoint[] devices) { LastApplied=devices; Interlocked.Increment(ref Writes); ReleaseSwitch.WaitOne(15000); throw new InvalidOperationException("Simulated failure; no hardware was changed."); }
 }
 class UiChecks {
     [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr window,int attribute,out int value,int size);
@@ -41,6 +41,11 @@ class UiChecks {
             Check(((Label)Field(form,"profileState")).Text.Contains("Custom"),"Split role setup marked active");
             var activeName=(TextBox)Field(form,"activeProfileName");
             Check(activeName.Text=="","Custom setup retained an active profile name");
+            Call(form,"BuildTrayMenu");
+            var trayMenu=(ContextMenuStrip)Field(form,"trayMenu");
+            var trayProfiles=trayMenu.Items.OfType<ToolStripMenuItem>().Where(i=>i.Tag is Profile).ToArray();
+            Check(trayProfiles.Length==2 && trayProfiles[0].Enabled && !trayProfiles[1].Enabled,"Tray profile availability incorrect");
+            Check(trayProfiles[1].ToolTipText.Contains("Playback missing"),"Tray profile lacks missing-device reason");
             var playback=(FlowLayoutPanel)Field(form,"outputList");
             var row=(TableLayoutPanel)playback.Controls[0];
             var roles=row.Controls.OfType<RoleIndicator>().OrderBy(i=>i.Role).ToArray();
@@ -49,10 +54,12 @@ class UiChecks {
             Check(roles.All(i=>!i.TabStop && i.AccessibleName.Length>0),"Role state accessibility missing");
             audio.Data.Defaults[0][2]="speaker0"; Call(form,"RefreshDevices");
             WaitFor(()=>activeName.Text=="Work","Matching profile name not shown: "+activeName.Text);
+            Check(trayProfiles[0].Checked,"Tray active profile is not checked");
             audio.Data.Defaults[0]=new[] {"speaker2","speaker2","speaker2"}; Call(form,"RefreshDevices");
             WaitFor(()=>activeName.Text=="","Custom setup did not clear active profile");
             WaitFor(()=>activeName.Text=="" && profiles.Controls.Count==2,"Manual switch retained stale profile name or deleted saved profiles: active="+activeName.Text+", rows="+profiles.Controls.Count+", status="+((Label)Field(form,"status")).Text);
             Check(((TableLayoutPanel)profiles.Controls[0]).Controls.OfType<Button>().First().Text=="Use Work","Inactive saved profile still looks selected");
+            Check(!trayProfiles[0].Checked,"Tray checkmark retained for a custom setup");
             Check(Field(form,"lastRenderError")==null,"Redraw failed: "+Field(form,"lastRenderError"));
             audio.Data.Defaults[0]=new[] {"speaker0","speaker0","speaker1"}; Call(form,"RefreshDevices"); Pump(200);
             int dark; int result=DwmGetWindowAttribute(form.Handle,20,out dark,4);
@@ -87,11 +94,13 @@ class UiChecks {
             var reloaded=new SettingsStore(path).Load(); Check(reloaded.Profiles[1].Output=="missing" && reloaded.Profiles[1].Name=="Renamed offline profile","Offline rename lost reference");
             int ticks=0; using(var timer=new System.Windows.Forms.Timer {Interval=20}) {
                 timer.Tick+=delegate {ticks++;}; timer.Start();
-                Call(form,"ApplyDevices",(object)new[] {audio.Data.Devices[0]}); Pump(500);
+                trayProfiles[0].PerformClick(); Pump(500);
+                Check(!trayProfiles[0].Enabled,"Tray selection was not disabled during switching");
                 Check(ticks>=2 && (bool)Field(form,"busy"),"UI blocked during background switching; ticks="+ticks+", busy="+Field(form,"busy")); audio.ReleaseSwitch.Set(); Pump(700);
                 Check(!(bool)Field(form,"busy") && ((Label)Field(form,"status")).Text.Contains("Simulated failure"),"Failure recovery not reported");
             }
             Check(audio.Writes==1,"Unexpected simulated switch count");
+            Check(audio.LastApplied.Length==2 && audio.LastApplied.Any(d=>d.Id=="speaker0") && audio.LastApplied.Any(d=>d.Id=="mic0"),"Tray switch did not apply the saved pair");
             Console.WriteLine("Passed: offline profiles, active-profile clearing after custom selection, compact/split role icons, native title-bar preference, inline edits, keyboard focus, responsive switching and failure feedback. Rendered three sizes and simulated 150%/200% control scaling in bin/ui-validation.");
         }
     }

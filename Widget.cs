@@ -22,6 +22,7 @@ namespace AudioSwitch {
         readonly IAudioService service;
         readonly Settings settings;
         readonly NotifyIcon tray = new NotifyIcon();
+        readonly ContextMenuStrip trayMenu = new ContextMenuStrip();
         readonly ToolTip tips = new ToolTip();
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
         readonly FlowLayoutPanel content = new FlowLayoutPanel();
@@ -42,6 +43,7 @@ namespace AudioSwitch {
         readonly List<Control> switchControls = new List<Control>();
         AudioSnapshot snapshot = new AudioSnapshot();
         bool exiting, busy, reading, fitting, otherExpanded;
+        bool traySwitch;
         Profile editing;
         string fingerprint = "";
         Exception lastRenderError;
@@ -94,9 +96,9 @@ namespace AudioSwitch {
             note.ForeColor=Color.Silver; content.Controls.Add(note);
             status.AutoSize=true; status.ForeColor=Color.FromArgb(200,205,215); status.Text="Reading connected devices…"; content.Controls.Add(status);
             tray.Icon=brandIcon; tray.Text="Audio Me";
-            var menu=new ContextMenuStrip(); menu.Items.Add("Show Audio Me",null,delegate { ShowWidget(); });
-            menu.Items.Add("Exit",null,delegate { if(busy) { status.Text="Wait for switching to finish before exiting."; return; } exiting=true; Close(); });
-            tray.ContextMenuStrip=menu; tray.MouseClick+=delegate(object sender,MouseEventArgs e) { if(e.Button==MouseButtons.Left) { if(Visible) Hide(); else ShowWidget(); } }; tray.Visible=true;
+            trayMenu.ShowItemToolTips=true;
+            trayMenu.Opening+=delegate { BuildTrayMenu(); RefreshDevices(); };
+            tray.ContextMenuStrip=trayMenu; tray.MouseClick+=delegate(object sender,MouseEventArgs e) { if(e.Button==MouseButtons.Left) { if(Visible) Hide(); else ShowWidget(); } }; tray.Visible=true;
             FormClosing+=delegate(object sender,FormClosingEventArgs e) {
                 RememberSize(); Save();
                 if(!exiting && e.CloseReason==CloseReason.UserClosing) { e.Cancel=true; Hide(); }
@@ -167,6 +169,7 @@ namespace AudioSwitch {
                 if(task.IsFaulted) { status.Text="Could not read audio devices: "+task.Exception.GetBaseException().Message; return; }
                 if(busy) return;
                 snapshot=task.Result;
+                UpdateTrayProfileStates();
                 foreach(var profile in settings.Profiles) {
                     var output=snapshot.Devices.FirstOrDefault(d=>d.Flow==0 && d.Id==profile.Output);
                     var input=snapshot.Devices.FirstOrDefault(d=>d.Flow==1 && d.Id==profile.Input);
@@ -208,6 +211,7 @@ namespace AudioSwitch {
                 }
                 foreach(var list in new[] { outputList,inputList }) if(list.Controls.Count==0) list.Controls.Add(TextLabel("No devices here. Check Other devices or connect hardware.",false));
                 UpdateOtherTitle();
+                UpdateTrayProfileStates();
             } catch(Exception e) { lastRenderError=e; fingerprint=""; status.Text="Could not update device view: "+e.Message; }
             finally { content.ResumeLayout(true); FitContent(); }
         }
@@ -242,14 +246,56 @@ namespace AudioSwitch {
             string missing=snapshot.Missing(p); if(missing.Length>0) { status.Text=missing; return; }
             ApplyDevices(snapshot.Pair(p));
         }
+        void BuildTrayMenu() {
+            foreach(ToolStripItem item in trayMenu.Items.Cast<ToolStripItem>().ToArray()) item.Dispose();
+            trayMenu.Items.Clear();
+            trayMenu.Items.Add("Show Audio Me",null,delegate { ShowWidget(); });
+            trayMenu.Items.Add(new ToolStripSeparator());
+            trayMenu.Items.Add(new ToolStripMenuItem("Profiles") { Enabled=false });
+            foreach(var p in settings.Profiles) {
+                var profile=p;
+                // Text is assigned literally: profile names may contain an ampersand.
+                var item=new ToolStripMenuItem { Text=p.Name,Tag=p };
+                item.Click+=delegate {
+                    if(busy || !settings.Profiles.Contains(profile)) return;
+                    string missing=snapshot.Missing(profile);
+                    if(missing.Length>0) { status.Text=missing; return; }
+                    traySwitch=true; ApplyProfile(profile);
+                };
+                trayMenu.Items.Add(item);
+            }
+            if(settings.Profiles.Count==0) trayMenu.Items.Add("Create a profile…",null,delegate { ShowWidget(); BeginEdit(null); });
+            trayMenu.Items.Add(new ToolStripSeparator());
+            var exit=new ToolStripMenuItem("Exit",null,delegate { if(busy) return; exiting=true; Close(); });
+            exit.Name="Exit"; trayMenu.Items.Add(exit);
+            UpdateTrayProfileStates();
+        }
+        void UpdateTrayProfileStates() {
+            foreach(var item in trayMenu.Items.OfType<ToolStripMenuItem>()) {
+                var p=item.Tag as Profile;
+                if(p!=null) {
+                    string missing=snapshot.Missing(p);
+                    item.Checked=snapshot.IsActive(p);
+                    item.Enabled=!busy && missing.Length==0 && settings.Profiles.Contains(p);
+                    item.Text=p.Name.Replace("&","&&")+(missing.Length>0?" (unavailable)":"");
+                    item.ToolTipText=busy?"Switching audio; please wait.":missing.Length>0?missing:"Switch playback and microphone to "+p.Name;
+                    item.AccessibleName=p.Name+(item.Checked?", active profile":"")+(missing.Length>0?", "+missing:"");
+                } else if(item.Name=="Exit") item.Enabled=!busy;
+            }
+        }
         void ApplyDevices(Endpoint[] devices) {
             if(busy || devices.Length==0) return; busy=true; status.Text="Switching and verifying System, Media and Calls…";
+            bool notify=traySwitch; traySwitch=false; UpdateTrayProfileStates();
             foreach(var c in switchControls) c.Enabled=false;
             Task.Factory.StartNew(()=>service.Apply(devices),CancellationToken.None,TaskCreationOptions.None,TaskScheduler.Default).ContinueWith(task=>{
                 var observed=task.Exception;
                 PostToUi(delegate {
                 busy=false; if(IsDisposed || Disposing) return;
                 status.Text=task.IsFaulted?"Switch failed: "+task.Exception.GetBaseException().Message:"Verified: System, Media and Calls updated.";
+                if(notify && !Visible) {
+                    tray.BalloonTipTitle=task.IsFaulted?"Audio Me · switch failed":"Audio Me · profile applied";
+                    tray.BalloonTipText=status.Text; tray.BalloonTipIcon=task.IsFaulted?ToolTipIcon.Warning:ToolTipIcon.Info; tray.ShowBalloonTip(3000);
+                }
                 Render(); fingerprint=""; RefreshDevices();
                 });
             },TaskScheduler.Default);
