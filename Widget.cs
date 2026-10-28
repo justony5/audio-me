@@ -131,7 +131,9 @@ namespace AudioSwitch {
                 foreach(Control c in content.Controls) {
                     c.Width=width;
                     var label=c as Label; if(label!=null) label.MaximumSize=new Size(width,0);
+                    if(c.AutoSize && !(c is Label)) c.MaximumSize=new Size(width,0);
                 }
+                foreach(Label label in editor.Controls.OfType<Label>()) label.MaximumSize=new Size(Math.Max(100,width-editor.Padding.Horizontal-8),0);
                 recovery.MaximumSize=new Size(Math.Max(100,width-10),0);
                 editorMessage.MaximumSize=new Size(Math.Max(100,width-10),0);
                 foreach(var list in new[] { profileList,outputList,inputList,otherList }) {
@@ -230,7 +232,7 @@ namespace AudioSwitch {
             },scheduler);
         }
         void BuildEditor() {
-            editor.AutoSize=true; editor.AutoSizeMode=AutoSizeMode.GrowAndShrink; editor.ColumnCount=1; editor.Visible=false; editor.Padding=new Padding(8); editor.BackColor=Color.FromArgb(36,36,40);
+            editor.AutoSize=true; editor.AutoSizeMode=AutoSizeMode.GrowAndShrink; editor.ColumnCount=1; editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100)); editor.Visible=false; editor.Padding=new Padding(8); editor.BackColor=Color.FromArgb(36,36,40);
             editChoice.DropDownStyle=ComboBoxStyle.DropDownList; editChoice.AccessibleName="Choose profile to edit";
             editChoice.SelectionChangeCommitted+=delegate { var p=editChoice.SelectedItem as Profile; BeginEdit(p); };
             profileName.AccessibleName="Profile name";

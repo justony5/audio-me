@@ -40,11 +40,16 @@ class UiChecks {
             }
             // Simulate larger logical UI scales without changing system settings.
             form.ClientSize=new Size(480,660);
+            var loadedSettings=(Settings)Field(form,"settings");
+            Call(form,"BeginEdit",loadedSettings.Profiles[1]); Pump(100);
+            var editorPanel=(TableLayoutPanel)Field(form,"editor"); var contentPanel=(FlowLayoutPanel)Field(form,"content");
+            Check(editorPanel.Width<=contentPanel.ClientSize.Width-contentPanel.Padding.Horizontal,"Inline editor overflows horizontally");
+            using(var bitmap=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size)); bitmap.Save(Path.Combine(root,"inline-editor.png")); }
+            editorPanel.Visible=false;
             form.Scale(new SizeF(1.5f,1.5f)); Call(form,"Render"); Pump(100);
             using(var bitmap=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size)); bitmap.Save(Path.Combine(root,"scale-150.png")); }
             form.Scale(new SizeF(4f/3f,4f/3f)); Call(form,"Render"); Pump(100);
             using(var bitmap=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size)); bitmap.Save(Path.Combine(root,"scale-200.png")); }
-            var loadedSettings=(Settings)Field(form,"settings");
             Call(form,"BeginEdit",loadedSettings.Profiles[1]);
             var input=(ComboBox)Field(form,"profileInput"); var output=(ComboBox)Field(form,"profileOutput");
             Check(((Endpoint)output.SelectedItem).Id=="missing" && ((Endpoint)input.SelectedItem).Id=="mic0","Offline editor substituted a device");
