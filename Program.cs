@@ -6,6 +6,8 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Xml.Serialization;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace AudioSwitch {
     public class Profile { public string Name; public string Output; public string Input; public override string ToString() { return Name; } }
@@ -13,6 +15,8 @@ namespace AudioSwitch {
         public List<Profile> Profiles = new List<Profile>(); public bool Pinned;
         public List<string> Favorites = new List<string>();
         public List<string> Deemphasized = new List<string>();
+        public int WindowWidth;
+        public int WindowHeight;
         public int DeviceRank(string id) { return Deemphasized.Contains(id) ? 2 : Favorites.Contains(id) ? 0 : 1; }
         public void ToggleDevice(string id, bool favorite) {
             var target = favorite ? Favorites : Deemphasized;
@@ -25,6 +29,7 @@ namespace AudioSwitch {
         }
     }
     static class Program {
+        [DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(uint processId);
         [STAThread] static void Main(string[] args) {
             if (args.Length == 2 && args[0] == "--diagnose") {
                 try {
@@ -40,11 +45,29 @@ namespace AudioSwitch {
                 return;
             }
             bool created;
+            using (var activation = new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\AudioSwitch.ShowWidget"))
             using (var mutex = new Mutex(true,"Local\\AudioSwitch.Widget",out created)) {
-                if (!created) return;
+                if (!created) {
+                    // The taskbar starts a second process. Give the existing process foreground
+                    // permission, then signal it even if its window is hidden or still starting.
+                    foreach (var name in new[] { "AudioMe", "AudioSwitch" }) foreach (var process in Process.GetProcessesByName(name)) {
+                        using (process) {
+                            try {
+                                if (process.Id != Process.GetCurrentProcess().Id && process.SessionId == Process.GetCurrentProcess().SessionId &&
+                                    Path.GetDirectoryName(process.MainModule.FileName) == AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar))
+                                    AllowSetForegroundWindow((uint)process.Id);
+                            } catch { }
+                        }
+                    }
+                    activation.Set(); return;
+                }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new Widget(args.Contains("--tray")));
+                using (var widget = new Widget(args.Contains("--tray")))
+                using (var activationTimer = new System.Windows.Forms.Timer { Interval = 150 }) {
+                    activationTimer.Tick += delegate { if (activation.WaitOne(0)) widget.ShowWidget(); };
+                    activationTimer.Start(); Application.Run(widget);
+                }
             }
         }
     }
@@ -63,8 +86,8 @@ namespace AudioSwitch {
         bool exiting, refreshing, startHidden;
         string fingerprint = "";
         public Widget(bool hidden) {
+            SuspendLayout();
             startHidden = hidden;
-            AutoScaleDimensions = new SizeF(96,96); AutoScaleMode = AutoScaleMode.Dpi;
             Text = "Audio Me"; ClientSize = new Size(440,540); MinimumSize = new Size(456,579);
             using (var resource = typeof(Program).Assembly.GetManifestResourceStream("AudioMe.ico")) brandIcon = new Icon(resource);
             Icon = brandIcon;
@@ -81,7 +104,7 @@ namespace AudioSwitch {
             layout.RowStyles.Add(new RowStyle(SizeType.Percent,45));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute,26));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute,38));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute,40));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute,46));
             layout.Controls.Add(new Label { Text = "Audio Me", Font = new Font(Font,FontStyle.Bold), AutoSize = true },0,0);
             layout.Controls.Add(Heading("SPEAKERS / HEADPHONES"),0,1); layout.Controls.Add(outputs,0,2);
@@ -101,9 +124,13 @@ namespace AudioSwitch {
                     Apply(pair);
                 } catch (Exception error) { status.Text = error.Message; }
             };
-            foreach (var panel in new[] { outputs,inputs }) { panel.Dock = DockStyle.Fill; panel.AutoScroll = true; panel.FlowDirection = FlowDirection.TopDown; panel.WrapContents = false; }
-            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill };
-            actions.Controls.Add(Button("Manage groups",ManageGroups));
+            foreach (var panel in new[] { outputs,inputs }) {
+                panel.Dock = DockStyle.Fill; panel.AutoScroll = true; panel.FlowDirection = FlowDirection.TopDown; panel.WrapContents = false;
+                panel.ClientSizeChanged += delegate { FitDeviceRows(panel); };
+            }
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = false, Padding = new Padding(0,4,0,4) };
+            var manage = Button("Manage groups",ManageGroups); manage.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            actions.Controls.Add(manage);
             var pin = new CheckBox { Text = "Keep on top", AutoSize = true, Checked = TopMost, Margin = new Padding(10,9,0,0) };
             pin.CheckedChanged += delegate { TopMost = settings.Pinned = pin.Checked; Save(); };
             actions.Controls.Add(pin); actions.Controls.Add(Button("Hide",delegate { Hide(); }));
@@ -116,16 +143,42 @@ namespace AudioSwitch {
             menu.Items.Add("Exit",null,delegate { exiting = true; Close(); });
             tray.ContextMenuStrip = menu; tray.MouseClick += delegate(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Left) { if (Visible) Hide(); else ShowWidget(); } };
             tray.Visible = true;
-            FormClosing += delegate(object sender, FormClosingEventArgs e) { if (!exiting && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); } };
+            FormClosing += delegate(object sender, FormClosingEventArgs e) {
+                RememberSize(); Save();
+                if (!exiting && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); }
+            };
+            VisibleChanged += delegate { if (!Visible && IsHandleCreated) { RememberSize(); Save(); } };
+            ResizeEnd += delegate { RememberSize(); Save(); };
             timer.Interval = 2000; timer.Tick += delegate { RefreshDevices(); }; timer.Start();
-            Shown += delegate { RefreshDevices(); if (startHidden) Hide(); };
+            Shown += delegate {
+                if (settings.WindowWidth > 0 && settings.WindowHeight > 0) {
+                    var available = Screen.FromControl(this).WorkingArea.Size;
+                    Size = new Size(Math.Min(available.Width,Math.Max(MinimumSize.Width,settings.WindowWidth)),
+                                    Math.Min(available.Height,Math.Max(MinimumSize.Height,settings.WindowHeight)));
+                }
+                RefreshDevices(); if (startHidden) Hide();
+            };
+            AutoScaleDimensions = new SizeF(96,96); AutoScaleMode = AutoScaleMode.Dpi;
+            ResumeLayout(true);
         }
         Label Heading(string text) { return new Label { Text = text, AutoSize = true, ForeColor = Color.FromArgb(160,165,175), Font = new Font("Segoe UI",9,FontStyle.Bold) }; }
         Button Button(string text, EventHandler action) {
             var b = new Button { Text = text, AutoSize = true, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(38,38,41), ForeColor = Color.WhiteSmoke, Padding = new Padding(3), Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(55,55,59); b.Click += action; return b;
         }
-        void ShowWidget() { Show(); WindowState = FormWindowState.Normal; Activate(); RefreshDevices(); }
+        internal void ShowWidget() {
+            Show(); if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            Activate(); RefreshDevices();
+            var modal = OwnedForms.LastOrDefault(f => f.Visible); if (modal != null) modal.Activate();
+        }
+        void RememberSize() {
+            var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+            if (bounds.Width > 0 && bounds.Height > 0) { settings.WindowWidth = bounds.Width; settings.WindowHeight = bounds.Height; }
+        }
+        static void FitDeviceRows(FlowLayoutPanel panel) {
+            int width = Math.Max(100,panel.ClientSize.Width-SystemInformation.VerticalScrollBarWidth-2);
+            foreach (Control row in panel.Controls) if (row is TableLayoutPanel) row.Width = width;
+        }
         void Save() {
             try {
                 Directory.CreateDirectory(Path.GetDirectoryName(settingsFile));
@@ -181,6 +234,7 @@ namespace AudioSwitch {
                 }
                 if (outputs.Controls.Count == 0) outputs.Controls.Add(Heading("No active playback devices"));
                 if (inputs.Controls.Count == 0) inputs.Controls.Add(Heading("No active recording devices"));
+                FitDeviceRows(outputs); FitDeviceRows(inputs);
                 groups.Items.Clear();
                 var available = settings.Profiles.Where(p => Pair(p,list).Length == 2).ToArray();
                 groups.Items.Add("Choose a group…"); groups.Items.AddRange(available);

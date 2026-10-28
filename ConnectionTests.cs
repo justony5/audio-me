@@ -33,12 +33,14 @@ class ConnectionTests {
         preferences.ToggleDevice("b",false); order("cab"); // Restore to normal tier.
         preferences.ToggleDevice("c",true); order("abc");
         preferences.ToggleDevice("a",false); preferences.ToggleDevice("b",true);
+        preferences.WindowWidth = 760; preferences.WindowHeight = 820;
         var serializer = new System.Xml.Serialization.XmlSerializer(typeof(Settings));
         using (var text = new System.IO.StringWriter()) {
             serializer.Serialize(text,preferences);
             using (var reader = new System.IO.StringReader(text.ToString())) {
                 var restored = (Settings)serializer.Deserialize(reader);
                 if (restored.DeviceRank("a") != 2 || restored.DeviceRank("b") != 0) throw new Exception("Preferences were not persisted");
+                if (restored.WindowWidth != 760 || restored.WindowHeight != 820) throw new Exception("Window size was not persisted");
             }
         }
         using (var reader = new System.IO.StringReader("<Settings><Profiles/><Pinned>false</Pinned></Settings>")) {

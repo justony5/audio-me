@@ -24,6 +24,7 @@ The UI uses 10.5-point Segoe UI and system-DPI-aware rendering rather than Windo
 - The **Group** dropdown contains only groups whose two endpoints are active and connected. Selecting a name immediately applies both devices, including all three audio roles. Disconnected groups remain saved in the manager and return automatically when both endpoints reconnect. Editing an offline group retains its saved device unless you choose a replacement.
 - **Keep on top** pins the widget above other windows.
 - **Hide**, closing the window, or clicking the tray icon hides the widget. Click the tray icon to reopen it. Right-click the tray icon and choose **Exit** to quit.
+- The last normal window size is saved when resizing, hiding, or exiting and restored on launch (clamped to the current display). Launching the EXE again, including from a pinned taskbar shortcut, brings the existing widget forward instead of silently exiting.
 - Run with `--tray` to start hidden. Automatic Windows startup is not enabled by this app; you can place a shortcut with that argument in your Windows Startup folder if desired.
 
 Profiles and the pin preference are saved in `%LOCALAPPDATA%\AudioSwitch\settings.xml`. Existing saved pairs remain compatible. Profiles use endpoint IDs so identically named devices remain distinct; new group names must be unique. Reinstalling a driver or changing USB ports can change endpoint IDs; edit affected groups to select their replacement devices.
