@@ -1,22 +1,35 @@
-Audio Me 1.0.1 - Windows x64
+Audio Me 1.1.0 beta - Windows x64
 
-Extract the ZIP and open AudioMe.exe. No installation or administrator access is needed.
-Requires Windows 10/11 x64 and .NET Framework 4.8 (included with Windows 11).
-The logo is embedded; the EXE can be moved on its own.
+Portable Windows audio switching. Requires Windows 10/11 x64 and .NET Framework 4.8.
+Extract and run AudioMe.exe. No installer or administrator access is needed.
 
-Click a speaker or microphone to change all three Windows default audio roles.
-Use Manage groups to save named speaker/microphone pairs, then select a group to switch both.
-Star favorites to sort them at the top. Red x moves a device to the bottom and dims it; click again to restore.
-Close hides the widget. Use its tray icon to reopen; right-click the tray icon and Exit to quit.
-The --tray argument starts it hidden.
-The window remembers its last size. Launching the EXE again reopens the running widget.
+FREE FEATURES
+Manual playback/microphone switching; profiles; favorites; local labels; collapsible
+Other devices; tray/taskbar access; keep-on-top; remembered size; optional current-user
+startup; device status; verification and restoration safeguards.
 
-Settings: %LOCALAPPDATA%\AudioSwitch\settings.xml (retained for compatibility).
-No network access, microphone recording, or telemetry is performed by the app.
+Select Create profile in the main window. Name it and explicitly choose one playback
+device and one microphone. Save, then click its name to activate. Edit opens the inline
+editor. Profiles do not combine multiple speakers. Disconnected profiles stay visible
+with a missing-device explanation; saved references are retained.
 
-The app is system-DPI aware and uses larger text. When changing monitor scaling or moving
-between displays with different scaling, exit and reopen for the sharpest result.
+Star favorites. Down moves a connected device into Other devices; up restores it.
+The pencil adds a local display alias; hardware names remain in tooltips.
+Basic keyboard navigation and accessibility remain free.
 
-Explicit per-app device selections can override Windows defaults.
-Windows PolicyConfig is undocumented; future Windows versions may require updates.
-This build is unsigned. Distribute only the EXE and checksum you intend to share.
+Closing hides the app to the tray. Launch again to reopen. Tray menu > Exit quits.
+Start with Windows uses a current-user entry; toggle off/on after moving the EXE.
+Settings: %LOCALAPPDATA%\AudioSwitch\settings.xml. Old groups migrate automatically.
+Unreadable settings are retained; saving pauses until explicit backup/reset.
+
+PLANNED PREMIUM - NOT IMPLEMENTED
+Global shortcuts, cycling shortcuts, application-triggered profiles and optional restoration.
+No payments, accounts, subscriptions or production licensing are implemented.
+
+LIMITATIONS
+Unsigned build. PolicyConfig is undocumented and may change with Windows updates.
+Per-app selections can override defaults. Some existing audio sessions need restart.
+Restoration is attempted, not guaranteed if devices disappear or Windows rejects a call.
+System-DPI aware; exit/reopen after changing monitor scale. Small windows scroll.
+Bluetooth, hotplug, sleep/resume and real failed-switch restoration need manual beta checks.
+No microphone audio is recorded and no telemetry is sent.
