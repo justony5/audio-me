@@ -2,7 +2,9 @@
 
 `Program.cs` owns process startup and single-instance activation. `Widget.cs` owns the manual interface, inline editor, tray interaction, current-user startup preference and UI-thread notifications.
 
-`Models.cs` contains persisted models, settings saves/recovery, profile availability and six-role matching, and `IAudioService`. `WindowsAudioService` creates and disposes COM objects on the worker thread that uses them; the UI never shares a COM object between threads. Read/switch tasks explicitly use the default background scheduler. UI continuations use the Windows Forms context. Only one manual switch is accepted at a time, exit is held during a switch, and a possibly stale polling result is ignored while switching.
+`Models.cs` contains persisted models, settings saves/recovery, profile availability and six-role matching, and `IAudioService`. `WindowsAudioService` creates and disposes COM objects on the worker thread that uses them; the UI never shares a COM object between threads. Read/switch tasks explicitly use the default background scheduler. Completion callbacks use the form's BeginInvoke dispatcher rather than an ambient synchronization context, keeping redraws on the owning UI thread even during nested/test message loops. Only one manual switch is accepted at a time, exit is held during a switch, and a possibly stale polling result is ignored while switching.
+
+`UiElements.cs` draws the compact role indicators and list outlines. Indicators are noninteractive and expose role/state accessible names plus tooltips. WindowTheme reads the current-user app theme preference and requests the DWM immersive title bar, with a native fallback on unsupported systems. It never modifies Windows theme settings. The active-profile field is derived from each snapshot; it is not a persisted last-used name.
 
 `Audio.cs` retains availability prechecks for the entire requested set, per-role writes, read-back verification, prior-default snapshots and verified restoration attempts. This reliability layer is not a paid capability.
 

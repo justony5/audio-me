@@ -26,11 +26,12 @@ namespace AudioSwitch {
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
         readonly FlowLayoutPanel content = new FlowLayoutPanel();
         readonly FlowLayoutPanel profileList = new FlowLayoutPanel();
-        readonly FlowLayoutPanel outputList = new FlowLayoutPanel();
-        readonly FlowLayoutPanel inputList = new FlowLayoutPanel();
-        readonly FlowLayoutPanel otherList = new FlowLayoutPanel();
+        readonly FlowLayoutPanel outputList = new DeviceList();
+        readonly FlowLayoutPanel inputList = new DeviceList();
+        readonly FlowLayoutPanel otherList = new DeviceList();
         readonly TableLayoutPanel editor = new TableLayoutPanel();
         readonly Label profileState = new Label(), status = new Label(), recovery = new Label();
+        readonly TextBox activeProfileName = new TextBox();
         readonly TextBox profileName = new TextBox();
         readonly ComboBox profileOutput = new ComboBox(), profileInput = new ComboBox(), editChoice = new ComboBox();
         readonly Label editorMessage = new Label();
@@ -43,6 +44,7 @@ namespace AudioSwitch {
         bool exiting, busy, reading, fitting, otherExpanded;
         Profile editing;
         string fingerprint = "";
+        Exception lastRenderError;
         public Widget(bool hidden) : this(hidden,new WindowsAudioService(),new SettingsStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AudioSwitch","settings.xml"))) { }
         internal Widget(bool hidden, IAudioService audioService, SettingsStore settingsStore) {
             SuspendLayout();
@@ -68,11 +70,15 @@ namespace AudioSwitch {
             profileHeader.Controls.Add(ActionButton("Create profile",delegate { BeginEdit(null); }));
             var manage=ActionButton("Edit profiles",delegate { editor.Visible=!editor.Visible; if(editor.Visible) PopulateEditorChoices(); FitContent(); });
             profileHeader.Controls.Add(manage); content.Controls.Add(profileHeader);
+            content.Controls.Add(TextLabel("Active profile",false));
+            activeProfileName.ReadOnly=true; activeProfileName.BackColor=Color.FromArgb(38,41,46); activeProfileName.ForeColor=Color.FromArgb(150,218,218);
+            activeProfileName.BorderStyle=BorderStyle.FixedSingle; activeProfileName.AccessibleName="Active profile; blank means custom setup";
+            content.Controls.Add(activeProfileName);
             profileState.AutoSize=true; profileState.ForeColor=Color.FromArgb(150,218,218); content.Controls.Add(profileState);
             SetupList(profileList); content.Controls.Add(profileList);
             BuildEditor(); content.Controls.Add(editor);
-            content.Controls.Add(Heading("PLAYBACK")); SetupList(outputList); content.Controls.Add(outputList);
-            content.Controls.Add(Heading("MICROPHONE")); SetupList(inputList); content.Controls.Add(inputList);
+            content.Controls.Add(DeviceHeading("PLAYBACK")); SetupList(outputList); content.Controls.Add(outputList);
+            content.Controls.Add(DeviceHeading("MICROPHONE")); SetupList(inputList); content.Controls.Add(inputList);
             otherToggle=ActionButton("Other devices",delegate { otherExpanded=!otherExpanded; otherList.Visible=otherExpanded; UpdateOtherTitle(); FitContent(); });
             content.Controls.Add(otherToggle); SetupList(otherList); otherList.Visible=false; content.Controls.Add(otherList);
             footer=Actions();
@@ -110,6 +116,9 @@ namespace AudioSwitch {
         }
         Label TextLabel(string text,bool bold) { return new Label { Text=text,AutoSize=true,Font=bold?new Font(Font,FontStyle.Bold):Font,Margin=new Padding(3,5,3,5) }; }
         Label Heading(string text) { var l=TextLabel(text,true); l.ForeColor=Color.FromArgb(160,165,175); return l; }
+        Label DeviceHeading(string text) {
+            return new Label { Text=text,AutoSize=true,Font=new Font("Segoe UI",11.5f,FontStyle.Bold),ForeColor=Color.FromArgb(177,220,224),Margin=new Padding(3,18,3,8) };
+        }
         FlowLayoutPanel Actions() { return new FlowLayoutPanel { AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,WrapContents=true,Margin=new Padding(0,1,0,1) }; }
         Button ActionButton(string text,EventHandler handler) {
             var b=new ThemeButton { Text=text,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,FlatStyle=FlatStyle.Flat,BackColor=Color.FromArgb(40,40,44),ForeColor=ForeColor,Padding=new Padding(5,3,5,3),Cursor=Cursors.Hand,Font=Font };
@@ -121,7 +130,7 @@ namespace AudioSwitch {
         }
         int Px(int value) { using(var g=CreateGraphics()) return (int)Math.Round(value*g.DpiX/96f); }
         void FitRows(FlowLayoutPanel panel) {
-            int width=Math.Max(100,panel.ClientSize.Width-SystemInformation.VerticalScrollBarWidth-2);
+            int width=Math.Max(100,panel.ClientSize.Width-panel.Padding.Horizontal-SystemInformation.VerticalScrollBarWidth-2);
             foreach(Control c in panel.Controls) c.Width=width;
         }
         void FitContent() {
@@ -139,16 +148,21 @@ namespace AudioSwitch {
                 foreach(var list in new[] { profileList,outputList,inputList,otherList }) {
                     list.Width=width;
                     int total=list.Controls.Cast<Control>().Sum(c=>c.Height+c.Margin.Vertical);
-                    list.Height=Math.Min(Px(list==profileList?130:128),Math.Max(Px(26),total+2));
+                    list.Height=Math.Min(Px(list==profileList?130:128),Math.Max(Px(26),total+list.Padding.Vertical+2));
                     FitRows(list);
                 }
             } finally { fitting=false; }
         }
         void Clear(FlowLayoutPanel panel) { foreach(Control c in panel.Controls.Cast<Control>().ToArray()) c.Dispose(); panel.Controls.Clear(); }
+        void PostToUi(Action action) {
+            if(IsDisposed || Disposing || !IsHandleCreated) return;
+            try { BeginInvoke(action); } catch(InvalidOperationException) { }
+        }
         void RefreshDevices() {
             if(reading || busy || IsDisposed) return; reading=true;
-            var scheduler=TaskScheduler.FromCurrentSynchronizationContext();
             Task.Factory.StartNew(()=>service.Read(),CancellationToken.None,TaskCreationOptions.None,TaskScheduler.Default).ContinueWith(task=>{
+                var observed=task.Exception;
+                PostToUi(delegate {
                 reading=false; if(IsDisposed || Disposing) return;
                 if(task.IsFaulted) { status.Text="Could not read audio devices: "+task.Exception.GetBaseException().Message; return; }
                 if(busy) return;
@@ -161,20 +175,23 @@ namespace AudioSwitch {
                 string next=String.Join("|",snapshot.Devices.Select(d=>d.Id+d.Name+snapshot.Roles(d)).ToArray());
                 if(next!=fingerprint) { fingerprint=next; Render(); }
                 if(status.Text=="Reading connected devices…") status.Text="Ready. Choose a device or profile.";
-            },scheduler);
+                });
+            },TaskScheduler.Default);
         }
         void Render() {
             content.SuspendLayout(); tips.RemoveAll(); switchControls.Clear();
             try {
                 foreach(var list in new[] { profileList,outputList,inputList,otherList }) Clear(list);
                 var active=settings.Profiles.Where(snapshot.IsActive).Select(p=>p.Name).ToArray();
-                profileState.Text=active.Length>0?"Active profile: "+String.Join(", ",active):"Custom setup · no saved profile matches all defaults";
+                activeProfileName.Text=String.Join(", ",active);
+                profileState.Text=active.Length>0?"Matches playback and microphone for all three roles.":"Custom setup · no profile selected";
+                tips.SetToolTip(activeProfileName,active.Length>0?activeProfileName.Text:"No saved profile matches the current Windows defaults.");
                 foreach(var p in settings.Profiles) {
                     var profile=p; string missing=snapshot.Missing(p);
                     var row=new TableLayoutPanel { Height=Px(60),ColumnCount=2,RowCount=2,Margin=new Padding(0,0,0,3) };
                     row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100)); row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,Px(58)));
                     row.RowStyles.Add(new RowStyle(SizeType.Percent,55)); row.RowStyles.Add(new RowStyle(SizeType.Percent,45));
-                    var activate=ActionButton((snapshot.IsActive(p)?"✓  ":"")+p.Name,delegate { ApplyProfile(profile); });
+                    var activate=ActionButton((snapshot.IsActive(p)?"✓  ":"Use ")+p.Name,delegate { ApplyProfile(profile); });
                     activate.AutoSize=false; activate.Dock=DockStyle.Fill; activate.AutoEllipsis=true; activate.TextAlign=ContentAlignment.MiddleLeft; activate.Enabled=missing.Length==0 && !busy;
                     activate.AccessibleName="Activate profile "+p.Name; switchControls.Add(activate);
                     if(snapshot.IsActive(p)) activate.ForeColor=Color.FromArgb(150,218,218);
@@ -191,14 +208,14 @@ namespace AudioSwitch {
                 }
                 foreach(var list in new[] { outputList,inputList }) if(list.Controls.Count==0) list.Controls.Add(TextLabel("No devices here. Check Other devices or connect hardware.",false));
                 UpdateOtherTitle();
-            } finally { content.ResumeLayout(true); FitContent(); }
+            } catch(Exception e) { lastRenderError=e; fingerprint=""; status.Text="Could not update device view: "+e.Message; }
+            finally { content.ResumeLayout(true); FitContent(); }
         }
         string FindName(string id) { var d=snapshot.Devices.FirstOrDefault(x=>x.Id==id); return d==null?id:d.Name; }
         Control DeviceRow(Endpoint d) {
-            var row=new TableLayoutPanel { Height=Px(52),ColumnCount=4,RowCount=2,Margin=new Padding(0,0,0,2) };
+            var row=new TableLayoutPanel { Height=Px(36),ColumnCount=7,RowCount=1,Margin=new Padding(0,0,0,3),BackColor=Color.FromArgb(40,40,44) };
             row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
-            foreach(int width in new[] {30,34,34}) row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,Px(width)));
-            row.RowStyles.Add(new RowStyle(SizeType.Percent,60)); row.RowStyles.Add(new RowStyle(SizeType.Percent,40));
+            foreach(int width in new[] {22,22,22,28,28,28}) row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,Px(width)));
             string roles=snapshot.Roles(d); bool other=settings.Deemphasized.Contains(d.Id), favorite=settings.Favorites.Contains(d.Id);
             var select=ActionButton((roles.Length>0?"✓  ":"")+settings.DisplayName(d),delegate { ApplyDevices(new[] {d}); });
             select.Dock=DockStyle.Fill; select.AutoSize=false; select.AutoEllipsis=true; select.TextAlign=ContentAlignment.MiddleLeft; select.Enabled=!busy;
@@ -210,11 +227,15 @@ namespace AudioSwitch {
             var alias=ActionButton("✎",delegate { BeginAlias(d); });
             star.AccessibleName=(favorite?"Remove favorite ":"Favorite ")+d.Name; move.AccessibleName=(other?"Move to main list ":"Move to Other devices ")+d.Name; alias.AccessibleName="Rename display label for "+d.Name;
             foreach(var b in new[] { star,move,alias }) { b.Dock=DockStyle.Fill; b.AutoSize=false; b.Padding=Padding.Empty; b.Margin=Padding.Empty; }
-            var roleLabel=TextLabel((d.Flow==0?"Playback":"Microphone")+" · "+(roles.Length==0?"Not a default":roles)+(other?" · Other devices":""),false);
-            roleLabel.AutoSize=false; roleLabel.AutoEllipsis=true; roleLabel.Dock=DockStyle.Fill; roleLabel.ForeColor=Color.Silver;
-            roleLabel.Margin=new Padding(4,0,3,0);
-            tips.SetToolTip(select,d.Name); tips.SetToolTip(roleLabel,roleLabel.Text); tips.SetToolTip(star,star.AccessibleName); tips.SetToolTip(move,move.AccessibleName); tips.SetToolTip(alias,alias.AccessibleName);
-            row.Controls.Add(select,0,0); row.Controls.Add(star,1,0); row.Controls.Add(move,2,0); row.Controls.Add(alias,3,0); row.Controls.Add(roleLabel,0,1); row.SetColumnSpan(roleLabel,4); return row;
+            select.AccessibleDescription=roles.Length>0?"Default for "+roles:"Not a Windows default";
+            tips.SetToolTip(select,d.Name+"\n"+(d.Flow==0?"Playback":"Microphone")+" · "+(roles.Length==0?"Not a default":roles));
+            tips.SetToolTip(star,star.AccessibleName); tips.SetToolTip(move,move.AccessibleName); tips.SetToolTip(alias,alias.AccessibleName);
+            row.Controls.Add(select,0,0);
+            for(int role=0;role<3;role++) {
+                var indicator=new RoleIndicator(role,snapshot.Defaults[d.Flow][role]==d.Id) { Dock=DockStyle.Fill,Margin=Padding.Empty };
+                tips.SetToolTip(indicator,indicator.AccessibleName); row.Controls.Add(indicator,role+1,0);
+            }
+            row.Controls.Add(star,4,0); row.Controls.Add(move,5,0); row.Controls.Add(alias,6,0); return row;
         }
         void UpdateOtherTitle() { otherToggle.Text=(otherExpanded?"▾":"▸")+" Other devices ("+otherList.Controls.Count+") · connected, less used"; }
         void ApplyProfile(Profile p) {
@@ -224,12 +245,14 @@ namespace AudioSwitch {
         void ApplyDevices(Endpoint[] devices) {
             if(busy || devices.Length==0) return; busy=true; status.Text="Switching and verifying System, Media and Calls…";
             foreach(var c in switchControls) c.Enabled=false;
-            var scheduler=TaskScheduler.FromCurrentSynchronizationContext();
             Task.Factory.StartNew(()=>service.Apply(devices),CancellationToken.None,TaskCreationOptions.None,TaskScheduler.Default).ContinueWith(task=>{
+                var observed=task.Exception;
+                PostToUi(delegate {
                 busy=false; if(IsDisposed || Disposing) return;
                 status.Text=task.IsFaulted?"Switch failed: "+task.Exception.GetBaseException().Message:"Verified: System, Media and Calls updated.";
                 Render(); fingerprint=""; RefreshDevices();
-            },scheduler);
+                });
+            },TaskScheduler.Default);
         }
         void BuildEditor() {
             editor.AutoSize=true; editor.AutoSizeMode=AutoSizeMode.GrowAndShrink; editor.ColumnCount=1; editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100)); editor.Visible=false; editor.Padding=new Padding(8); editor.BackColor=Color.FromArgb(36,36,40);
@@ -293,6 +316,12 @@ namespace AudioSwitch {
         }
         void RememberSize() { var bounds=WindowState==FormWindowState.Normal?Bounds:RestoreBounds; if(bounds.Width>0 && bounds.Height>0) { settings.WindowWidth=bounds.Width; settings.WindowHeight=bounds.Height; } }
         internal void ShowWidget() { Show(); if(WindowState==FormWindowState.Minimized) WindowState=FormWindowState.Normal; Activate(); RefreshDevices(); }
+        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); WindowTheme.Apply(Handle); }
+        protected override void WndProc(ref Message message) {
+            base.WndProc(ref message);
+            // Windows broadcasts setting/theme changes; no system settings are modified.
+            if(message.Msg==0x001A || message.Msg==0x031A) WindowTheme.Apply(Handle);
+        }
         internal static Endpoint[] Pair(Profile p,List<Endpoint> list) { return new AudioSnapshot { Devices=list }.Pair(p); }
         static bool StartupEnabled() { try { using(var key=Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run")) return key!=null && key.GetValue("AudioMe")!=null; } catch { return false; } }
         static void SetStartup(bool enabled) {

@@ -10,10 +10,11 @@ Move between gaming, work, and casual listening without digging through Windows 
 
 - **Manual playback and microphone switching**, with availability checks, verification of all requested roles, and attempts to restore previous defaults on failure.
 - **Profiles inside the main window:** create, rename, edit, delete, and manually activate named setups. No separate management window.
-- **Clear profile status:** active profiles are highlighted; custom or split-role setups are identified. Disconnected profiles remain visible and explain which device is missing. Saved references stay intact until you choose a replacement.
+- **Clear profile status:** a read-only Active profile field shows only setups matching all six defaults and clears for custom combinations. Saved profiles remain available as “Use [name]” buttons; the matching profile gains a checkmark. Disconnected profiles remain visible with missing-device explanations.
 - **Favorites:** gold stars sort favorites alphabetically at the top. Local display aliases keep long hardware names manageable; full hardware names remain in tooltips.
 - **Other devices:** move connected but less-used hardware into a collapsible section with the down arrow; use the up arrow to restore it. This is separate from disconnected profile status.
-- **Visible role assignments:** see System, Media, and Calls under each device, including when Windows assigns them to different devices.
+- **Compact role indicators:** computer, disc and phone icons beside each device show System, Media and Calls. Green means that role is active; grey means inactive. Tooltips and accessible names describe each role. Bordered lists and spaced section headings distinguish Playback from Microphone.
+- **System-themed title bar:** follows the Windows app light/dark preference and responds to theme-change notifications on supported Windows versions. The utility's charcoal content theme is retained.
 - **Tray access and taskbar reopening**, keep-on-top, remembered window size, and optional startup with Windows for the current user.
 - **Background switching and verification** keep the window responsive; status messages report success, failure, and restoration problems.
 - **Settings recovery:** unreadable or invalid settings are left untouched, saving is paused, and an explicit recovery action backs up the original before allowing a reset. Normal saves retain the previous file as a backup.
@@ -39,7 +40,7 @@ These are roadmap items, not capabilities in this build. Basic Tab/Shift+Tab nav
 3. Select **Save profile**, then click the profile's name to activate it.
 4. Use its **Edit** button to rename it, change either device, or delete it. **Edit profiles** also opens the editor.
 
-An unavailable profile cannot be activated. Its missing-device explanation remains visible, and editing it retains the saved device reference. Reconnecting the same endpoint makes it available again. Audio Me never silently substitutes another microphone or speaker.
+An unavailable profile cannot be activated. Its missing-device explanation remains visible, and editing it retains the saved device reference. Reconnecting the same endpoint makes it available again. Audio Me never silently substitutes another microphone or speaker. Selecting individual devices clears the Active profile field whenever the new combination no longer matches a saved profile; it does not delete saved profiles or change an open editor's draft.
 
 Old saved groups migrate automatically to profiles using the same stored endpoint IDs. Favorites, Other devices preferences, pin state, and window size remain compatible.
 
@@ -79,7 +80,7 @@ The GitHub Windows workflow builds, runs source-level tests, and packages downlo
 
 Tests cover settings migration/recovery, six-role profile matching, missing endpoints and reconnection, offline edits without substitution, preferences/window dimensions, keyboard focus, and responsiveness/failure feedback with a fake service. Layouts were rendered at 440×480, 480×660, and 720×900 client sizes and with simulated 150%/200% control scaling. Simulated scaling does not verify real monitor DPI transitions.
 
-**Hardware validation still required:** Bluetooth transitions, USB/HDMI disconnects during switching, sleep/resume, app-specific routing, real failed-switch restoration, and assistive-technology testing. No live defaults were changed during this revision. See the [beta checklist](docs/BETA-CHECKLIST.md).
+**Hardware validation still required:** Bluetooth transitions, USB/HDMI disconnects during switching, sleep/resume, app-specific routing, real failed-switch restoration, and assistive-technology testing. With permission, the profile-to-custom transition was also checked using live playback switching and the original setup was restored. See the [beta checklist](docs/BETA-CHECKLIST.md).
 
 ## Development and distribution
 

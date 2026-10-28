@@ -1,4 +1,4 @@
-Audio Me 1.1.0 beta - Windows x64
+Audio Me 1.1.1 beta - Windows x64
 
 Portable Windows audio switching. Requires Windows 10/11 x64 and .NET Framework 4.8.
 Extract and run AudioMe.exe. No installer or administrator access is needed.
@@ -12,6 +12,10 @@ Select Create profile in the main window. Name it and explicitly choose one play
 device and one microphone. Save, then click its name to activate. Edit opens the inline
 editor. Profiles do not combine multiple speakers. Disconnected profiles stay visible
 with a missing-device explanation; saved references are retained.
+Active profile shows only matching defaults and clears for custom combinations;
+saved profiles remain available as Use buttons. Computer/disc/phone icons show
+System/Media/Calls in green when active and grey otherwise. Hover for role names.
+The title bar follows Windows app light/dark preference on supported versions.
 
 Star favorites. Down moves a connected device into Other devices; up restores it.
 The pencil adds a local display alias; hardware names remain in tooltips.

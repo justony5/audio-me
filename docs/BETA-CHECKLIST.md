@@ -8,6 +8,8 @@
 - Invalid/unreadable settings protection, save blocking, explicit backup/reset and previous-file backups.
 - Inline offline rename without substitution; accessible editor labels and Tab focus from name to playback.
 - Simulated switch/failure with UI message-loop activity; no live default changes.
+- Profile-to-custom regression verifies that the Active profile field clears while saved profiles remain. Split-role computer/disc/phone indicators and the current Windows title-bar preference are checked.
+- With explicit permission, activated Gaming on live hardware, then returned playback to the original fifine speakers with the fifine microphone. Confirmed active-name clearing and restored role indicators. This does not cover failed-switch restoration.
 - Rendered 440×480, 480×660 and 720×900 client sizes plus simulated 150%/200% control scaling. Small windows/long lists scroll; tooltips retain full names and explanations.
 
 ## Manual hardware and accessibility checks still required
