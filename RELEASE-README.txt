@@ -1,6 +1,8 @@
-Audio Me 1.1.2 beta - Windows x64
+Audio Me 1.1.4 beta - Windows x64
 
 Portable Windows audio switching. Requires Windows 10/11 x64 and .NET Framework 4.8.
+Developer: Justin Miller. Help > About shows the running version and app details.
+File and Preferences include disabled Planned entries for future features.
 Extract and run AudioMe.exe. No installer or administrator access is needed.
 
 FREE FEATURES

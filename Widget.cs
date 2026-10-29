@@ -27,6 +27,7 @@ namespace AudioSwitch {
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
         readonly System.Windows.Forms.Timer layoutTimer = new System.Windows.Forms.Timer { Interval=75 };
         readonly TableLayoutPanel bottom = new TableLayoutPanel();
+        readonly MenuStrip mainMenu = new MenuStrip();
         Label disclaimer;
         readonly FlowLayoutPanel content = new FlowLayoutPanel();
         readonly FlowLayoutPanel profileList = new FlowLayoutPanel();
@@ -57,11 +58,12 @@ namespace AudioSwitch {
             DoubleBuffered=true;
             service=audioService; store=settingsStore; settings=store.Load();
             Font=new Font("Segoe UI",10.5f); BackColor=Color.FromArgb(30,30,32); ForeColor=Color.WhiteSmoke;
-            Text="Audio Me"; ClientSize=new Size(480,720); MinimumSize=new Size(440,480); StartPosition=FormStartPosition.CenterScreen;
+            Text="Audio Me · "+Application.ProductVersion; ClientSize=new Size(480,720); MinimumSize=new Size(440,480); StartPosition=FormStartPosition.CenterScreen;
             using(var stream=typeof(Program).Assembly.GetManifestResourceStream("AudioMe.ico")) brandIcon=new Icon(stream);
             Icon=brandIcon; TopMost=settings.Pinned;
             content.Dock=DockStyle.Fill; content.FlowDirection=FlowDirection.TopDown; content.WrapContents=false; content.AutoScroll=true; content.Padding=new Padding(14);
             Controls.Add(content);
+            BuildMainMenu();
             var header=Actions();
             header.Controls.Add(TextLabel("Audio Me",true));
             header.Controls.Add(TextLabel("Free · Public beta",false)); content.Controls.Add(header);
@@ -126,6 +128,35 @@ namespace AudioSwitch {
             AutoScaleDimensions=new SizeF(96,96); AutoScaleMode=AutoScaleMode.Dpi; ResumeLayout(true);
         }
         Label TextLabel(string text,bool bold) { return new Label { Text=text,AutoSize=true,Font=bold?new Font(Font,FontStyle.Bold):Font,Margin=new Padding(3,5,3,5) }; }
+        void BuildMainMenu() {
+            mainMenu.Dock=DockStyle.Top; mainMenu.BackColor=Color.FromArgb(38,38,42); mainMenu.ForeColor=ForeColor;
+            mainMenu.Renderer=new ToolStripProfessionalRenderer(new MenuColors());
+            var file=new ToolStripMenuItem("&File");
+            file.DropDownItems.Add(Planned("Import profiles",false)); file.DropDownItems.Add(Planned("Export profiles",false));
+            file.DropDownItems.Add(new ToolStripSeparator());
+            file.DropDownItems.Add("&Hide to tray",null,delegate { Hide(); });
+            file.DropDownItems.Add("E&xit",null,delegate { if(busy) { status.Text="Wait for switching to finish before exiting."; return; } exiting=true; Close(); });
+            var preferences=new ToolStripMenuItem("&Preferences");
+            preferences.DropDownItems.Add(Planned("Keyboard shortcuts",true)); preferences.DropDownItems.Add(Planned("Application bindings",true));
+            var help=new ToolStripMenuItem("&Help"); help.DropDownItems.Add("&About Audio Me…",null,delegate { using(var about=CreateAboutDialog()) about.ShowDialog(this); });
+            mainMenu.Items.AddRange(new ToolStripItem[] {file,preferences,help});
+            foreach(var top in mainMenu.Items.OfType<ToolStripMenuItem>()) foreach(ToolStripItem item in top.DropDownItems) item.ForeColor=ForeColor;
+            MainMenuStrip=mainMenu; Controls.Add(mainMenu); mainMenu.SendToBack();
+        }
+        ToolStripMenuItem Planned(string name,bool premium) {
+            return new ToolStripMenuItem(name+" — Planned"+(premium?" (Premium)":"")) { Enabled=false,ToolTipText="Not available in this build." };
+        }
+        internal Form CreateAboutDialog() {
+            var dialog=new Form { Text="About Audio Me",Font=Font,BackColor=BackColor,ForeColor=ForeColor,ClientSize=new Size(430,440),StartPosition=FormStartPosition.CenterParent,FormBorderStyle=FormBorderStyle.FixedDialog,MinimizeBox=false,MaximizeBox=false,ShowInTaskbar=false,Icon=brandIcon };
+            var layout=new TableLayoutPanel { Dock=DockStyle.Fill,Padding=new Padding(20),ColumnCount=1,AutoScroll=true };
+            layout.Controls.Add(TextLabel("Audio Me",true));
+            layout.Controls.Add(TextLabel("Version "+typeof(Program).Assembly.GetName().Version+" · Windows x64 · Beta",false));
+            layout.Controls.Add(TextLabel("Developer: Justin Miller",false));
+            var description=TextLabel("Quickly switch speakers, microphones and saved profiles. Verifies System, Media and Calls defaults.\n\nManual switching, profiles, favorites and tray access are free. Shortcuts and application bindings are planned premium features.\n\nPortable .NET Framework 4.8 application. Unsigned build. Some apps use their own audio device selections.",false);
+            description.MaximumSize=new Size(380,0); layout.Controls.Add(description);
+            var close=ActionButton("OK",delegate { dialog.Close(); }); layout.Controls.Add(close); dialog.AcceptButton=close; dialog.CancelButton=close;
+            dialog.Controls.Add(layout); dialog.HandleCreated+=delegate { WindowTheme.Apply(dialog.Handle); }; return dialog;
+        }
         Label Heading(string text) { var l=TextLabel(text,true); l.ForeColor=Color.FromArgb(160,165,175); return l; }
         Label DeviceHeading(string text) {
             return new Label { Text=text,AutoSize=true,Font=new Font("Segoe UI",11.5f,FontStyle.Bold),ForeColor=Color.FromArgb(177,220,224),Margin=new Padding(3,18,3,8) };

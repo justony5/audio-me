@@ -46,6 +46,8 @@ Old saved groups migrate automatically to profiles using the same stored endpoin
 
 ## Run
 
+The top menu bar provides **File**, **Preferences**, and **Help**. **Help → About Audio Me** shows the running version and developer, **Justin Miller**; the version also appears in the title bar. Profile import/export and premium keyboard shortcuts/application bindings are disabled entries marked **Planned**, not implemented features. File also provides Hide to tray and Exit.
+
 Requires **Windows 10/11 x64 and .NET Framework 4.8**. Windows 11 includes the runtime. Extract a portable ZIP and open `AudioMe.exe`; no installer or administrator access is required. The icon is embedded, so the EXE can be moved by itself.
 
 - Closing the window hides it to the tray. Launch it again or use its tray icon to reopen it. Right-click the tray icon and select **Exit** to quit; exit is deferred while switching is in progress.

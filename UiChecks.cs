@@ -37,6 +37,17 @@ class UiChecks {
         var type=typeof(Settings).Assembly.GetType("AudioSwitch.Widget");
         using(var form=(Form)Activator.CreateInstance(type,BindingFlags.Instance|BindingFlags.NonPublic,null,new object[] {false,audio,new SettingsStore(path)},null)) {
             form.Text="Audio Me · simulated UI validation"; form.Show(); Pump(300);
+            var mainMenu=(MenuStrip)Field(form,"mainMenu");
+            Check(mainMenu.Items.Count==3 && mainMenu.Items[2].Text=="&Help","Top menus missing");
+            var preferences=(ToolStripMenuItem)mainMenu.Items[1];
+            Check(preferences.DropDownItems.Cast<ToolStripItem>().All(i=>!i.Enabled && i.Text.Contains("Planned")),"Placeholder looks implemented");
+            using(var about=(Form)form.GetType().GetMethod("CreateAboutDialog",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(form,null)) {
+                var labels=about.Controls[0].Controls.OfType<Label>().Select(l=>l.Text).ToArray();
+                Check(labels.Any(t=>t=="Developer: Justin Miller") && labels.Any(t=>t.Contains(typeof(Settings).Assembly.GetName().Version.ToString())),"About identity or version incorrect");
+                about.Show(form); Pump(50);
+                using(var bitmap=new Bitmap(about.Width,about.Height)) { about.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size)); bitmap.Save(Path.Combine(root,"about.png")); }
+                about.Close();
+            }
             var profiles=(FlowLayoutPanel)Field(form,"profileList"); Check(profiles.Controls.Count==2,"Disconnected profiles hidden");
             Check(((Label)Field(form,"profileState")).Text.Contains("Custom"),"Split role setup marked active");
             var activeName=(TextBox)Field(form,"activeProfileName");
