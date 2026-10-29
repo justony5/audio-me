@@ -25,6 +25,9 @@ namespace AudioSwitch {
         readonly ContextMenuStrip trayMenu = new ContextMenuStrip();
         readonly ToolTip tips = new ToolTip();
         readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
+        readonly System.Windows.Forms.Timer layoutTimer = new System.Windows.Forms.Timer { Interval=75 };
+        readonly TableLayoutPanel bottom = new TableLayoutPanel();
+        Label disclaimer;
         readonly FlowLayoutPanel content = new FlowLayoutPanel();
         readonly FlowLayoutPanel profileList = new FlowLayoutPanel();
         readonly FlowLayoutPanel outputList = new DeviceList();
@@ -44,12 +47,14 @@ namespace AudioSwitch {
         AudioSnapshot snapshot = new AudioSnapshot();
         bool exiting, busy, reading, fitting, otherExpanded;
         bool traySwitch;
+        bool resourcesDisposed;
         Profile editing;
         string fingerprint = "";
         Exception lastRenderError;
         public Widget(bool hidden) : this(hidden,new WindowsAudioService(),new SettingsStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AudioSwitch","settings.xml"))) { }
         internal Widget(bool hidden, IAudioService audioService, SettingsStore settingsStore) {
             SuspendLayout();
+            DoubleBuffered=true;
             service=audioService; store=settingsStore; settings=store.Load();
             Font=new Font("Segoe UI",10.5f); BackColor=Color.FromArgb(30,30,32); ForeColor=Color.WhiteSmoke;
             Text="Audio Me"; ClientSize=new Size(480,720); MinimumSize=new Size(440,480); StartPosition=FormStartPosition.CenterScreen;
@@ -93,8 +98,10 @@ namespace AudioSwitch {
             }; footer.Controls.Add(startup);
             footer.Controls.Add(ActionButton("Hide",delegate { Hide(); })); content.Controls.Add(footer);
             var note=TextLabel("Closing hides Audio Me to the tray. Launch it again to reopen.\nWindows defaults may not redirect apps with their own device selections.",false);
-            note.ForeColor=Color.Silver; content.Controls.Add(note);
-            status.AutoSize=true; status.ForeColor=Color.FromArgb(200,205,215); status.Text="Reading connected devices…"; content.Controls.Add(status);
+            disclaimer=note; note.ForeColor=Color.Silver;
+            status.AutoSize=true; status.ForeColor=Color.FromArgb(200,205,215); status.Text="Reading connected devices…";
+            bottom.Dock=DockStyle.Bottom; bottom.AutoSize=true; bottom.AutoSizeMode=AutoSizeMode.GrowAndShrink; bottom.ColumnCount=1; bottom.Padding=new Padding(14,5,14,8);
+            bottom.Controls.Add(note); bottom.Controls.Add(status); Controls.Add(bottom); bottom.SendToBack();
             tray.Icon=brandIcon; tray.Text="Audio Me";
             trayMenu.ShowItemToolTips=true;
             trayMenu.Opening+=delegate { BuildTrayMenu(); RefreshDevices(); };
@@ -105,14 +112,16 @@ namespace AudioSwitch {
             };
             VisibleChanged+=delegate { if(!Visible && IsHandleCreated) { RememberSize(); Save(); } };
             ResizeEnd+=delegate { RememberSize(); Save(); };
-            content.ClientSizeChanged+=delegate { FitContent(); };
+            layoutTimer.Tick+=delegate { layoutTimer.Stop(); FitContent(); };
+            content.ClientSizeChanged+=delegate { layoutTimer.Stop(); layoutTimer.Start(); };
             timer.Interval=2000; timer.Tick+=delegate { RefreshDevices(); };
             Shown+=delegate {
                 if(settings.WindowWidth>0 && settings.WindowHeight>0) {
                     var area=Screen.FromControl(this).WorkingArea;
                     Size=new Size(Math.Min(area.Width,Math.Max(MinimumSize.Width,settings.WindowWidth)),Math.Min(area.Height,Math.Max(MinimumSize.Height,settings.WindowHeight)));
                 }
-                FitContent(); RefreshDevices(); timer.Start(); if(hidden) Hide();
+                // Saved profiles must remain visible even if initial device discovery fails.
+                Render(); FitContent(); RefreshDevices(); timer.Start(); if(hidden) Hide();
             };
             AutoScaleDimensions=new SizeF(96,96); AutoScaleMode=AutoScaleMode.Dpi; ResumeLayout(true);
         }
@@ -133,14 +142,19 @@ namespace AudioSwitch {
         int Px(int value) { using(var g=CreateGraphics()) return (int)Math.Round(value*g.DpiX/96f); }
         void FitRows(FlowLayoutPanel panel) {
             int width=Math.Max(100,panel.ClientSize.Width-panel.Padding.Horizontal-SystemInformation.VerticalScrollBarWidth-2);
-            foreach(Control c in panel.Controls) c.Width=width;
+            panel.SuspendLayout();
+            try { foreach(Control c in panel.Controls) if(c.Width!=width) c.Width=width; }
+            finally { panel.ResumeLayout(true); }
         }
         void FitContent() {
             if(fitting || IsDisposed) return; fitting=true;
+            content.SuspendLayout();
             try {
+                int bottomWidth=Math.Max(100,ClientSize.Width-bottom.Padding.Horizontal-8);
+                disclaimer.MaximumSize=new Size(bottomWidth,0); status.MaximumSize=new Size(bottomWidth,0);
                 int width=Math.Max(160,content.ClientSize.Width-content.Padding.Horizontal-SystemInformation.VerticalScrollBarWidth-4);
                 foreach(Control c in content.Controls) {
-                    c.Width=width;
+                    if(c.Width!=width) c.Width=width;
                     var label=c as Label; if(label!=null) label.MaximumSize=new Size(width,0);
                     if(c.AutoSize && !(c is Label)) c.MaximumSize=new Size(width,0);
                 }
@@ -153,7 +167,7 @@ namespace AudioSwitch {
                     list.Height=Math.Min(Px(list==profileList?130:128),Math.Max(Px(26),total+list.Padding.Vertical+2));
                     FitRows(list);
                 }
-            } finally { fitting=false; }
+            } finally { content.ResumeLayout(true); fitting=false; }
         }
         void Clear(FlowLayoutPanel panel) { foreach(Control c in panel.Controls.Cast<Control>().ToArray()) c.Dispose(); panel.Controls.Clear(); }
         void PostToUi(Action action) {
@@ -376,7 +390,9 @@ namespace AudioSwitch {
             }
         }
         protected override void Dispose(bool disposing) {
-            if(disposing) { timer.Dispose(); tips.Dispose(); tray.Visible=false; tray.ContextMenuStrip.Dispose(); tray.Dispose(); brandIcon.Dispose(); }
+            if(disposing && !resourcesDisposed) {
+                resourcesDisposed=true; layoutTimer.Dispose(); timer.Dispose(); tips.Dispose(); tray.Visible=false; trayMenu.Dispose(); tray.Dispose(); brandIcon.Dispose();
+            }
             base.Dispose(disposing);
         }
     }

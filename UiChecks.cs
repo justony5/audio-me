@@ -69,6 +69,8 @@ class UiChecks {
             Check(((FlowLayoutPanel)Field(form,"otherList")).Controls.Count==1,"Other devices migration failed");
             foreach(var size in new[] {new Size(480,660),new Size(440,480),new Size(720,900)}) {
                 form.ClientSize=size; Pump(100);
+                var bottomPanel=(TableLayoutPanel)Field(form,"bottom");
+                Check(bottomPanel.Bottom==form.ClientSize.Height,"Disclaimer is not anchored to bottom");
                 using(var bitmap=new Bitmap(form.Width,form.Height)) { form.DrawToBitmap(bitmap,new Rectangle(Point.Empty,bitmap.Size)); bitmap.Save(Path.Combine(root,"layout-"+size.Width+".png")); }
             }
             // Simulate larger logical UI scales without changing system settings.
@@ -101,7 +103,20 @@ class UiChecks {
             }
             Check(audio.Writes==1,"Unexpected simulated switch count");
             Check(audio.LastApplied.Length==2 && audio.LastApplied.Any(d=>d.Id=="speaker0") && audio.LastApplied.Any(d=>d.Id=="mic0"),"Tray switch did not apply the saved pair");
+            Call(form,"BeginEdit",(object)null);
+            ((TextBox)Field(form,"profileName")).Text="Persist after exit";
+            ((ComboBox)Field(form,"profileOutput")).SelectedIndex=1;
+            ((ComboBox)Field(form,"profileInput")).SelectedIndex=1;
+            Call(form,"SaveProfile");
+            form.GetType().GetField("exiting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(form,true);
+            form.Close();
             Console.WriteLine("Passed: offline profiles, active-profile clearing after custom selection, compact/split role icons, native title-bar preference, inline edits, keyboard focus, responsive switching and failure feedback. Rendered three sizes and simulated 150%/200% control scaling in bin/ui-validation.");
+        }
+        using(var reopened=(Form)Activator.CreateInstance(type,BindingFlags.Instance|BindingFlags.NonPublic,null,new object[] {false,audio,new SettingsStore(path)},null)) {
+            reopened.Show(); Pump(300);
+            var restored=(Settings)Field(reopened,"settings");
+            Check(restored.Profiles.Count==3 && restored.Profiles.Any(p=>p.Name=="Persist after exit"),"Created profile lost after full exit/reopen");
+            Console.WriteLine("Passed: newly created profile survives full form exit, disposal and fresh startup.");
         }
     }
 }

@@ -67,9 +67,15 @@ namespace AudioSwitch {
         public void Save(Settings value) {
             if (RecoveryRequired) throw new InvalidOperationException("Saving is paused to protect unreadable settings. Use the recovery action first.");
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path)));
-            var temporary = Path + ".tmp";
+            var temporary = Path + "."+Guid.NewGuid().ToString("N")+".tmp";
             try {
-                using (var stream = File.Create(temporary)) new XmlSerializer(typeof(Settings)).Serialize(stream,value);
+                using (var stream = new FileStream(temporary,FileMode.CreateNew,FileAccess.Write,FileShare.None)) {
+                    new XmlSerializer(typeof(Settings)).Serialize(stream,value); stream.Flush(true);
+                }
+                using(var stream=File.OpenRead(temporary)) {
+                    var verified=(Settings)new XmlSerializer(typeof(Settings)).Deserialize(stream);
+                    if(verified.Profiles.Count!=value.Profiles.Count) throw new IOException("Profile persistence verification failed.");
+                }
                 if (File.Exists(Path)) File.Replace(temporary,Path,Path+".bak"); else File.Move(temporary,Path);
             } finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
