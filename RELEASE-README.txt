@@ -1,4 +1,4 @@
-Audio Me 1.2.0 beta - Windows x64
+Audio Me 1.2.1 beta - Windows x64
 
 Portable Windows audio switching. Requires Windows 10/11 x64 and .NET Framework 4.8.
 Developer: Justin Miller. Settings (gear) > About shows the running version.
