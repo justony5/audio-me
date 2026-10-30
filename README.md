@@ -9,6 +9,10 @@
 ![Public beta](https://img.shields.io/badge/status-public%20beta-19E3C6)
 ![Windows 10/11 x64](https://img.shields.io/badge/Windows-10%20%7C%2011%20x64-0078D4?logo=windows)
 
+### [⬇ Download the latest version (zip)](https://github.com/justony5/audio-me/releases/latest)
+
+No PowerShell or building needed: extract the zip and run `AudioMe.exe`. See [Download and run](#download-and-run) for details.
+
 Move between gaming, work and casual listening without digging through Windows Sound settings. Pick a device, or activate a profile that selects **one playback device and one microphone**. Audio Me sets and verifies the Windows **System, Media and Calls** defaults for you.
 
 <table>
@@ -63,8 +67,8 @@ A free option to send **calls to a different device** than system and media audi
 
 Requires **Windows 10/11 x64 and .NET Framework 4.8** (included with Windows 11). The glass effect needs Windows 11 22H2 or later with *Transparency effects* on. Otherwise Audio Me uses a solid dark surface.
 
-1. Download the latest `AudioMe-*-win-x64.zip` from [Releases](https://github.com/justony5/audio-me/releases), or from the newest successful [Windows build](https://github.com/justony5/audio-me/actions/workflows/build.yml) run (*Artifacts*).
-2. Extract it and run `AudioMe.exe`. No installer or administrator access is needed.
+1. Open the [latest release](https://github.com/justony5/audio-me/releases/latest) and download `AudioMe-<version>-win-x64.zip` under *Assets*.
+2. Right-click the zip → **Extract All**, then run `AudioMe.exe` from the extracted folder. No installer or administrator access is needed.
 3. The build is **unsigned**, so Windows SmartScreen may show *Windows protected your PC*. Choose *More info → Run anyway* if you trust the download. Each release includes a SHA-256 checksum.
 
 Closing the window hides it to the tray. Left-click the tray icon for the flyout. Right-click it for profiles and **Exit**. `--tray` starts hidden. Settings live at `%LOCALAPPDATA%\AudioSwitch\settings.xml` (the old folder name is kept for compatibility).
@@ -96,6 +100,8 @@ From PowerShell in the repository directory:
 .\test-ui.ps1 -Screenshots docs\screenshots  # Regenerates README screenshots (briefly shows windows)
 .\release.ps1                                # Portable ZIP + SHA-256 in dist\ (does not publish)
 ```
+
+To publish a release, add release notes at `docs/releases/v<version>.md` and push a matching tag (for example `git tag v1.2.0` then `git push origin v1.2.0`). The Windows build workflow builds, tests and attaches the zip and checksum to a GitHub Release.
 
 Exit a running copy before rebuilding. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
