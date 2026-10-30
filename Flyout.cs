@@ -20,6 +20,9 @@ namespace AudioSwitch {
         readonly StackPanel strip=new StackPanel { Orientation=Orientation.Horizontal };
         TextBlock status;
         int expanded=-1;
+        // Usable screen edges (DIPs) captured when the flyout opens; used to keep it on screen as it grows.
+        double workTop, workBottom; bool taskbarOnTop, anchored;
+        const double Edge=12;
         internal DateTime HiddenAt=DateTime.MinValue;
 
         public Flyout(Widget owner) {
@@ -31,7 +34,8 @@ namespace AudioSwitch {
             WindowChrome.SetWindowChrome(this,new WindowChrome { CaptionHeight=0,ResizeBorderThickness=new Thickness(0),GlassFrameThickness=new Thickness(-1),UseAeroCaptionButtons=false,CornerRadius=new CornerRadius(0) });
             rootBorder.Child=stack; Content=rootBorder;
             scroller.Content=strip; scroller.SizeChanged+=delegate { Widget.SizeTiles(scroller,strip,owner.Preferences.Profiles.Count,3); };
-            Widget.SmoothWheel(scroller);
+            Widget.SmoothWheel(scroller); owner.EditOnRightClick(strip);
+            SizeChanged+=delegate { if(anchored) KeepOnScreen(); };
             SourceInitialized+=delegate { ApplySurface(); };
             Deactivated+=delegate { HideFlyout(); };
             PreviewKeyDown+=delegate(object sender,KeyEventArgs e) { if(e.Key==Key.Escape) { HideFlyout(); e.Handled=true; } };
@@ -120,16 +124,21 @@ namespace AudioSwitch {
             var work=screen.WorkingArea; var bounds=screen.Bounds;
             var topLeft=toDip.Transform(new Point(work.Left,work.Top)); var bottomRight=toDip.Transform(new Point(work.Right,work.Bottom));
             var point=toDip.Transform(new Point(cursor.X,cursor.Y));
-            const double margin=12;
-            Left=Math.Max(topLeft.X+margin,Math.Min(bottomRight.X-ActualWidth-margin,point.X-ActualWidth+48));
-            bool taskbarOnTop=work.Top>bounds.Top;
-            double finalTop=taskbarOnTop?topLeft.Y+margin:bottomRight.Y-ActualHeight-margin;
+            Left=Math.Max(topLeft.X+Edge,Math.Min(bottomRight.X-ActualWidth-Edge,point.X-ActualWidth+48));
+            taskbarOnTop=work.Top>bounds.Top; workTop=topLeft.Y; workBottom=bottomRight.Y; anchored=true;
+            double finalTop=AnchoredTop();
             var ease=new CubicEase { EasingMode=EasingMode.EaseOut };
             BeginAnimation(TopProperty,new DoubleAnimation(finalTop+(taskbarOnTop?-14:14),finalTop,TimeSpan.FromMilliseconds(220)) { EasingFunction=ease,FillBehavior=FillBehavior.Stop });
             Top=finalTop;
             BeginAnimation(OpacityProperty,new DoubleAnimation(0,1,TimeSpan.FromMilliseconds(180)));
             Activate();
         }
+        double AnchoredTop() {
+            double top=taskbarOnTop?workTop+Edge:workBottom-ActualHeight-Edge;
+            // Grow away from the taskbar, but never past either edge of the usable area.
+            return Math.Max(workTop+Edge,Math.Min(top,workBottom-ActualHeight-Edge));
+        }
+        void KeepOnScreen() { BeginAnimation(TopProperty,null); Top=AnchoredTop(); }
         internal void HideFlyout() {
             if(!IsVisible) return;
             HiddenAt=DateTime.UtcNow;

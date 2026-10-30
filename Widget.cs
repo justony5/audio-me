@@ -68,7 +68,7 @@ namespace AudioSwitch {
         bool exiting, busy, reading, otherExpanded, traySwitch, resourcesDisposed, glass;
         int tab;
         Profile editing;
-        string fingerprint="";
+        string fingerprint="", saveError;
         Exception lastRenderError;
 
         public Widget(bool hidden) : this(hidden,new WindowsAudioService(),new SettingsStore(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AudioSwitch","settings.xml"))) { }
@@ -184,6 +184,7 @@ namespace AudioSwitch {
             header.Children.Add(edit); stack.Children.Add(header);
             profileScroller.Content=profileStrip; profileScroller.SizeChanged+=delegate { SizeTiles(profileScroller,profileStrip,settings.Profiles.Count,4); };
             SmoothWheel(profileScroller); stack.Children.Add(profileScroller);
+            EditOnRightClick(profileStrip);
 
             var segment=new Grid(); segment.ColumnDefinitions.Add(new ColumnDefinition()); segment.ColumnDefinitions.Add(new ColumnDefinition());
             Grid.SetColumn(micTab,1); segment.Children.Add(playbackTab); segment.Children.Add(micTab);
@@ -321,7 +322,7 @@ namespace AudioSwitch {
             editorMessage.Margin=new Thickness(4,12,4,0); stack.Children.Add(editorMessage);
             var actions=new WrapPanel { Margin=new Thickness(0,16,0,0) };
             var save=Ui.Pill("Save profile",Glyph.Check,true); save.Click+=delegate { SaveProfile(); };
-            deleteButton.Click+=delegate { if(editing!=null) { settings.Profiles.Remove(editing); editing=null; Save(); ShowPage(home,true); Render(); SetStatus("Profile deleted.",0); } };
+            deleteButton.Click+=delegate { DeleteProfile(); };
             ((StackPanel)deleteButton.Content).Children.OfType<TextBlock>().ToList().ForEach(t => t.SetResourceReference(TextBlock.ForegroundProperty,"Danger"));
             var cancel=Ui.Pill("Cancel",null,false); cancel.Click+=delegate { ShowPage(home,true); };
             foreach(var b in new[] { save,deleteButton,cancel }) { b.Margin=new Thickness(0,0,8,8); actions.Children.Add(b); }
@@ -377,9 +378,7 @@ namespace AudioSwitch {
         void RenderProfiles() {
             profileStrip.Children.Clear();
             foreach(var p in settings.Profiles) {
-                var tile=ProfileTile(p,92);
-                var profile=p; tile.MouseRightButtonUp+=delegate { BeginEdit(profile); };
-                profileStrip.Children.Add(tile);
+                profileStrip.Children.Add(ProfileTile(p,92));
             }
             profileStrip.Children.Add(NewTile());
             SizeTiles(profileScroller,profileStrip,settings.Profiles.Count,4);
@@ -406,7 +405,7 @@ namespace AudioSwitch {
                 tile.Effect=new DropShadowEffect { Color=Theme.Current,BlurRadius=22,ShadowDepth=0,Opacity=0.28 };
             } else { tile.SetResourceReference(Control.BackgroundProperty,"Card"); tile.SetResourceReference(Control.BorderBrushProperty,"CardBorder"); }
             tile.IsEnabled=missing.Length==0 && !busy;
-            Ui.Tip(tile,missing.Length>0?missing:"Switch playback and microphone to "+p.Name+" for System, Media and Calls.\nRight-click to edit.");
+            Ui.Tip(tile,(missing.Length>0?missing:"Switch playback and microphone to "+p.Name+" for System, Media and Calls.")+"\nRight-click to edit.");
             tile.Click+=delegate { if(flyout!=null && flyout.IsVisible) traySwitch=true; ApplyProfile(p); };
             switchControls.Add(tile); return tile;
         }
@@ -431,6 +430,21 @@ namespace AudioSwitch {
                 var tile=(FrameworkElement)strip.Children[i]; tile.Width=width;
                 tile.Margin=new Thickness(0,0,i==strip.Children.Count-1?0:gap,scrolls?8:0);
             }
+        }
+        // Disabled (unavailable) tiles receive no mouse input, so the row resolves which tile was right-clicked.
+        internal void EditOnRightClick(StackPanel strip) {
+            strip.Background=Brushes.Transparent;
+            strip.MouseRightButtonUp+=delegate(object sender,MouseButtonEventArgs e) {
+                var p=ProfileAt(strip,e.GetPosition(strip)); if(p==null) return;
+                e.Handled=true; BeginEdit(p);
+            };
+        }
+        internal static Profile ProfileAt(StackPanel strip,Point point) {
+            foreach(var tile in strip.Children.OfType<Button>().Where(b=>b.Tag is Profile)) {
+                var origin=tile.TranslatePoint(new Point(0,0),strip);
+                if(new Rect(origin,new Size(tile.ActualWidth,tile.ActualHeight)).Contains(point)) return (Profile)tile.Tag;
+            }
+            return null;
         }
         internal static void SmoothWheel(ScrollViewer scroller) {
             double target=0; EventHandler tick=null;
@@ -744,15 +758,33 @@ namespace AudioSwitch {
             var output=editOutput; var input=editInput; string name=profileName.Text.Trim();
             if(name.Length==0 || output==null || input==null) { editorMessage.Text="Enter a name and choose both devices. No substitutes are selected automatically."; editorMessage.SetResourceReference(TextBlock.ForegroundProperty,"Warn"); return; }
             if(settings.Profiles.Any(p=>p!=editing && String.Equals(p.Name,name,StringComparison.OrdinalIgnoreCase))) { editorMessage.Text="Choose a unique profile name."; editorMessage.SetResourceReference(TextBlock.ForegroundProperty,"Warn"); return; }
-            var saved=editing??new Profile(); saved.Name=name; saved.Output=output.Id; saved.Input=input.Id; saved.OutputName=output.Name; saved.InputName=input.Name; saved.Icon=editIcon;
-            if(editing==null) settings.Profiles.Add(saved);
-            editing=saved;
-            if(Save()) { ShowPage(home,true); SetStatus("Profile saved. Select it to switch devices.",1); }
-            Render();
+            bool isNew=editing==null; var saved=editing??new Profile();
+            var before=isNew?null:CopyProfile(saved);
+            saved.Name=name; saved.Output=output.Id; saved.Input=input.Id; saved.OutputName=output.Name; saved.InputName=input.Name; saved.Icon=editIcon;
+            if(isNew) settings.Profiles.Add(saved);
+            // Only report success for what reached disk; otherwise undo the in-memory change.
+            if(!Save()) {
+                if(isNew) settings.Profiles.Remove(saved); else RestoreProfile(saved,before);
+                editorMessage.Text="Profile not saved: "+saveError; editorMessage.SetResourceReference(TextBlock.ForegroundProperty,"Warn");
+                return;
+            }
+            editing=saved; ShowPage(home,true); SetStatus("Profile saved. Select it to switch devices.",1); Render();
+        }
+        void DeleteProfile() {
+            if(editing==null) return;
+            var removed=editing; int index=settings.Profiles.IndexOf(removed);
+            settings.Profiles.Remove(removed);
+            if(!Save()) { settings.Profiles.Insert(Math.Max(0,index),removed); SetStatus("Profile not deleted: "+saveError,2); return; }
+            editing=null; ShowPage(home,true); Render(); SetStatus("Profile deleted.",0);
+        }
+        static Profile CopyProfile(Profile p) { return new Profile { Name=p.Name,Output=p.Output,Input=p.Input,OutputName=p.OutputName,InputName=p.InputName,Icon=p.Icon }; }
+        static void RestoreProfile(Profile target,Profile from) {
+            target.Name=from.Name; target.Output=from.Output; target.Input=from.Input; target.OutputName=from.OutputName; target.InputName=from.InputName; target.Icon=from.Icon;
         }
         bool Save() {
-            if(store.RecoveryRequired) return false;
-            try { store.Save(settings); return true; } catch(Exception e) { SetStatus("Settings could not be saved: "+e.Message,2); return false; }
+            if(store.RecoveryRequired) { saveError="saving is paused until the unreadable settings file is backed up and reset."; SetStatus("Settings not saved: "+saveError,2); return false; }
+            try { store.Save(settings); saveError=null; return true; }
+            catch(Exception e) { saveError=e.Message; SetStatus("Settings could not be saved: "+e.Message,2); return false; }
         }
         void SetPinned(bool pinned) { settings.Pinned=pinned; Topmost=pinned; pinToggle.IsChecked=pinned; UpdatePinButton(); Save(); }
         void UpdatePinButton() {

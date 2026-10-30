@@ -109,6 +109,12 @@ class UiChecks {
         Check(Field(form,"lastRenderError")==null,"Redraw failed: "+Field(form,"lastRenderError"));
         audio.Data.Defaults[0]=new[] { "speaker0","speaker0","speaker1" }; Call(form,"RefreshDevices"); Pump(200);
         Check(((StackPanel)Field(form,"otherList")).Children.Count==1,"Other devices migration failed");
+        // Unavailable tiles are disabled, so right-click editing is resolved by the row, not the tile.
+        var currentOffline=(Button)strip.Children[1];
+        var offlineCenter=currentOffline.TranslatePoint(new Point(currentOffline.ActualWidth/2,currentOffline.ActualHeight/2),strip);
+        var hit=App.GetType("AudioSwitch.Widget").GetMethod("ProfileAt",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[] { strip,offlineCenter });
+        Check(!currentOffline.IsEnabled && hit==((Settings)Field(form,"settings")).Profiles[1],"Right-click cannot reach an unavailable profile");
+        Check(strip.Background!=null,"Profile row is not hit-testable between disabled tiles");
 
         // Accent: Windows accent on request, teal by default, persisted either way.
         var theme=App.GetType("AudioSwitch.Theme");
@@ -147,6 +153,10 @@ class UiChecks {
         Check(pick!=null,"Flyout playback picker did not expand");
         Click(Tree(heads()).OfType<Button>().First(b=>AutomationProperties.GetName(b).StartsWith("Choose microphone"))); Pump(100);
         Check(Tree(heads()).OfType<Button>().Any(b=>AutomationProperties.GetName(b).StartsWith("Switch microphone to")),"Flyout microphone picker did not expand");
+        // An expanded picker grows the flyout; it must stay inside the usable screen area.
+        flyout.UpdateLayout(); Pump(100);
+        double workTop=(double)Field(flyout,"workTop"), workBottom=(double)Field(flyout,"workBottom");
+        Check(flyout.Top>=workTop+11 && flyout.Top+flyout.ActualHeight<=workBottom-11,"Expanded flyout extends off screen: top="+flyout.Top+" height="+flyout.ActualHeight+" work="+workTop+".."+workBottom);
         Call(form,"Render"); Call(flyout,"Render"); Pump(50);
         Snapshot(flyout,Path.Combine(root,"flyout.png"));
         Call(flyout,"HideFlyout"); WaitFor(()=>!flyout.IsVisible,"Flyout did not close");
@@ -169,6 +179,23 @@ class UiChecks {
         nameField.Text="Renamed offline profile"; Call(form,"SaveProfile");
         var reloaded=new SettingsStore(path).Load(); Check(reloaded.Profiles[1].Output=="missing" && reloaded.Profiles[1].Name=="Renamed offline profile","Offline rename lost reference");
 
+        // When the settings file can't be written, nothing may claim success or diverge from disk.
+        var status=(TextBlock)Field(form,"status"); var editorMessage=(TextBlock)Field(form,"editorMessage");
+        int saved=loaded.Profiles.Count; File.SetAttributes(path,FileAttributes.ReadOnly);
+        try {
+            Call(form,"BeginEdit",loaded.Profiles[0]); Pump(100); Call(form,"DeleteProfile"); Pump(50);
+            Check(loaded.Profiles.Count==saved && loaded.Profiles[0].Name=="Work" && status.Text.StartsWith("Profile not deleted"),"Delete reported success without saving: "+status.Text);
+            Call(form,"BeginEdit",(object)null); Pump(100); nameField.Text="Never saved";
+            Click(((StackPanel)Field(form,"outputChoices")).Children.OfType<Button>().First());
+            Click(((StackPanel)Field(form,"inputChoices")).Children.OfType<Button>().First());
+            Call(form,"SaveProfile");
+            Check(!loaded.Profiles.Any(p=>p.Name=="Never saved") && editorMessage.Text.StartsWith("Profile not saved"),"Unsaved new profile kept in memory");
+            Call(form,"BeginEdit",loaded.Profiles[0]); Pump(100); nameField.Text="Renamed but unsaved"; Call(form,"SaveProfile");
+            Check(loaded.Profiles[0].Name=="Work" && editorMessage.Text.StartsWith("Profile not saved"),"Unsaved edit kept in memory");
+        } finally { File.SetAttributes(path,FileAttributes.Normal); }
+        Check(new SettingsStore(path).Load().Profiles.Count==saved,"Failed saves changed the settings file");
+        Call(form,"ShowPage",Field(form,"home"),false);
+
         // Switching runs in the background and failures are reported.
         int ticks=0; var timer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(20) };
         timer.Tick+=delegate { ticks++; }; timer.Start();
@@ -188,7 +215,7 @@ class UiChecks {
         Call(form,"SaveProfile");
         form.GetType().GetField("exiting",BindingFlags.Instance|BindingFlags.NonPublic).SetValue(form,true);
         form.Close(); Pump(100);
-        Console.WriteLine("Passed: offline profiles, active-profile clearing after custom selection, role chips, accent default/Windows/restore, horizontal profile scrolling, tray flyout, settings/About, offline edits, focus, responsive switching and failure feedback. Rendered layouts in bin/ui-validation.");
+        Console.WriteLine("Passed: offline profiles, right-click on unavailable tiles, truthful save/delete on write failure, on-screen flyout growth, active-profile clearing after custom selection, role chips, accent default/Windows/restore, horizontal profile scrolling, tray flyout, settings/About, offline edits, focus, responsive switching and failure feedback. Rendered layouts in bin/ui-validation.");
         var reopened=Create(audio,path); reopened.Show(); Pump(300);
         var restored=(Settings)Field(reopened,"settings");
         Check(restored.Profiles.Count==3 && restored.Profiles.Any(p=>p.Name=="Persist after exit" && p.Output=="speaker0"),"Created profile lost after full exit/reopen");
