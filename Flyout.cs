@@ -18,7 +18,7 @@ namespace AudioSwitch {
         readonly StackPanel stack=new StackPanel();
         readonly ScrollViewer scroller=new ScrollViewer { HorizontalScrollBarVisibility=ScrollBarVisibility.Auto,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,Focusable=false };
         readonly StackPanel strip=new StackPanel { Orientation=Orientation.Horizontal };
-        readonly TextBlock status=Ui.Text("",12,FontWeights.Normal,"Muted");
+        TextBlock status;
         int expanded=-1;
         internal DateTime HiddenAt=DateTime.MinValue;
 
@@ -32,7 +32,6 @@ namespace AudioSwitch {
             rootBorder.Child=stack; Content=rootBorder;
             scroller.Content=strip; scroller.SizeChanged+=delegate { Widget.SizeTiles(scroller,strip,owner.Preferences.Profiles.Count,3); };
             Widget.SmoothWheel(scroller);
-            status.TextWrapping=TextWrapping.Wrap; status.TextTrimming=TextTrimming.None;
             SourceInitialized+=delegate { ApplySurface(); };
             Deactivated+=delegate { HideFlyout(); };
             PreviewKeyDown+=delegate(object sender,KeyEventArgs e) { if(e.Key==Key.Escape) { HideFlyout(); e.Handled=true; } };
@@ -67,13 +66,15 @@ namespace AudioSwitch {
 
             var footer=new Grid { Margin=new Thickness(2,14,0,0) };
             footer.ColumnDefinitions.Add(new ColumnDefinition()); footer.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
+            // Rebuilt each render: the previous footer still owns the old status text.
+            status=Ui.Wrap("",12,"Muted"); status.VerticalAlignment=VerticalAlignment.Center;
             footer.Children.Add(status); UpdateStatus();
             var more=Ui.Button(Ui.Text("Open Audio Me  ›",12,FontWeights.SemiBold,"Accent"),"Open Audio Me",8); more.Padding=new Thickness(8,3,8,3);
             more.VerticalAlignment=VerticalAlignment.Center; more.Click+=delegate { owner.ShowWidget(); };
             Grid.SetColumn(more,1); footer.Children.Add(more);
             stack.Children.Add(footer);
         }
-        internal void UpdateStatus() { status.Text=owner.StatusText; }
+        internal void UpdateStatus() { if(status!=null) status.Text=owner.StatusText; }
         UIElement Picker(int flow,AudioSnapshot snapshot,Settings settings) {
             var panel=new StackPanel { Margin=new Thickness(0,12,0,0) };
             var current=owner.Find(snapshot.Defaults[flow][0]);

@@ -140,6 +140,14 @@ class UiChecks {
         Call(form,"ToggleFlyout"); Pump(300);
         var flyout=(Window)Field(form,"flyout");
         Check(flyout.IsVisible && ((StackPanel)Field(flyout,"strip")).Children.Count==2,"Tray flyout profiles missing");
+        // Every redraw (picker expand, switch completion, reopen) must rebuild cleanly.
+        var heads=new Func<StackPanel>(()=>(StackPanel)Field(flyout,"stack"));
+        Click(Tree(heads()).OfType<Button>().First(b=>AutomationProperties.GetName(b).StartsWith("Choose playback device"))); Pump(100);
+        var pick=Tree(heads()).OfType<Button>().FirstOrDefault(b=>AutomationProperties.GetName(b).StartsWith("Switch playback to"));
+        Check(pick!=null,"Flyout playback picker did not expand");
+        Click(Tree(heads()).OfType<Button>().First(b=>AutomationProperties.GetName(b).StartsWith("Choose microphone"))); Pump(100);
+        Check(Tree(heads()).OfType<Button>().Any(b=>AutomationProperties.GetName(b).StartsWith("Switch microphone to")),"Flyout microphone picker did not expand");
+        Call(form,"Render"); Call(flyout,"Render"); Pump(50);
         Snapshot(flyout,Path.Combine(root,"flyout.png"));
         Call(flyout,"HideFlyout"); WaitFor(()=>!flyout.IsVisible,"Flyout did not close");
 
