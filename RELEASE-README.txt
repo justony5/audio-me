@@ -1,43 +1,47 @@
-Audio Me 1.1.4 beta - Windows x64
+Audio Me 1.2.0 beta - Windows x64
 
 Portable Windows audio switching. Requires Windows 10/11 x64 and .NET Framework 4.8.
-Developer: Justin Miller. Help > About shows the running version and app details.
-File and Preferences include disabled Planned entries for future features.
+Developer: Justin Miller. Settings (gear) > About shows the running version.
 Extract and run AudioMe.exe. No installer or administrator access is needed.
+The build is unsigned: SmartScreen may ask before the first run (More info > Run anyway).
+Glass surfaces need Windows 11 22H2+ with Transparency effects on; otherwise a solid
+dark surface is used.
 
 FREE FEATURES
-Manual playback/microphone switching; profiles; favorites; local labels; collapsible
-Other devices; tray/taskbar access; keep-on-top; remembered size; optional current-user
-startup; device status; verification and restoration safeguards.
+Manual playback/microphone switching; profiles with icons; favorites; local labels;
+collapsible Other devices; tray quick-switch flyout and tray menu; keep-on-top; accent
+color (Audio Me teal or match Windows); remembered size; optional current-user startup;
+device status; verification and restoration safeguards.
 
-Select Create profile in the main window. Name it and explicitly choose one playback
-device and one microphone. Save, then click its name to activate. Edit opens the inline
-editor. Profiles do not combine multiple speakers. Disconnected profiles stay visible
-with a missing-device explanation; saved references are retained.
-Active profile shows only matching defaults and clears for custom combinations;
-saved profiles remain available as Use buttons. Computer/disc/phone icons show
-System/Media/Calls in green when active and grey otherwise. Hover for role names.
-The title bar follows Windows app light/dark preference on supported versions.
+Select New in the profile row. Name it, pick an icon and explicitly choose one playback
+device and one microphone. Save, then click its tile to activate. Right-click a tile or
+use Edit to change it. Disconnected profiles stay visible, dimmed with a missing-device
+explanation; saved references are retained and never substituted.
+The Now card names a profile only when all six defaults match; otherwise it shows
+Custom setup. Monitor/music/phone chips show System/Media/Calls for each device.
+With more than three profiles the row scrolls sideways (mouse wheel works).
 
-Star favorites. Down moves a connected device into Other devices; up restores it.
-The pencil adds a local display alias; hardware names remain in tooltips.
-Basic keyboard navigation and accessibility remain free.
+Star favorites. The ... button renames a device's local label or moves it to Other
+devices and back. Hardware names remain in tooltips. Esc returns to the main page.
 
-Closing hides the app to the tray. Launch again to reopen. Tray menu > Exit quits.
-Right-click the tray icon to switch saved profiles directly. The active profile is
-checked; unavailable profiles are disabled. Hidden-window switches show tray feedback.
+Closing hides the app to the tray. Left-click the tray icon for the quick-switch
+flyout; right-click for profiles and Exit. Hidden-window switches show tray feedback.
 Start with Windows uses a current-user entry; toggle off/on after moving the EXE.
 Settings: %LOCALAPPDATA%\AudioSwitch\settings.xml. Old groups migrate automatically.
 Unreadable settings are retained; saving pauses until explicit backup/reset.
 
+Support development: https://buymeacoffee.com/justony5
+Source and issues: https://github.com/justony5/audio-me (MIT License)
+
 PLANNED PREMIUM - NOT IMPLEMENTED
-Global shortcuts, cycling shortcuts, application-triggered profiles and optional restoration.
+Global shortcuts, cycling shortcuts, application-triggered profiles with optional restoration,
+and playing through two devices at once. A free calls-on-another-device option is planned.
 No payments, accounts, subscriptions or production licensing are implemented.
 
 LIMITATIONS
 Unsigned build. PolicyConfig is undocumented and may change with Windows updates.
 Per-app selections can override defaults. Some existing audio sessions need restart.
 Restoration is attempted, not guaranteed if devices disappear or Windows rejects a call.
-System-DPI aware; exit/reopen after changing monitor scale. Small windows scroll.
+System-DPI aware; exit/reopen after changing monitor scale. Long pages scroll.
 Bluetooth, hotplug, sleep/resume and real failed-switch restoration need manual beta checks.
 No microphone audio is recorded and no telemetry is sent.

@@ -4,6 +4,6 @@ using System.Reflection;
 [assembly: AssemblyDescription("Quick speaker and microphone switching")]
 [assembly: AssemblyCompany("Justin Miller")]
 [assembly: AssemblyCopyright("Copyright © 2026 Justin Miller")]
-[assembly: AssemblyVersion("1.1.4.0")]
-[assembly: AssemblyFileVersion("1.1.4.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.8")]

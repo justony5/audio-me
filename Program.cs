@@ -1,10 +1,8 @@
 using System;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Windows.Forms;
-using System.Xml.Serialization;
+using System.Windows.Threading;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
@@ -43,13 +41,16 @@ namespace AudioSwitch {
                     }
                     activation.Set(); return;
                 }
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                using (var widget = new Widget(args.Contains("--tray")))
-                using (var activationTimer = new System.Windows.Forms.Timer { Interval = 150 }) {
-                    activationTimer.Tick += delegate { if (activation.WaitOne(0)) widget.ShowWidget(); };
-                    activationTimer.Start(); Application.Run(widget);
-                }
+                System.Windows.Forms.Application.EnableVisualStyles();
+                Theme.EnsureApp();
+                bool hidden=args.Contains("--tray");
+                var widget=new Widget(hidden);
+                var activationTimer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(150) };
+                activationTimer.Tick+=delegate { if(activation.WaitOne(0)) widget.ShowWidget(); };
+                activationTimer.Start();
+                if(!hidden) widget.Show();
+                System.Windows.Application.Current.Run();
+                activationTimer.Stop();
             }
         }
     }

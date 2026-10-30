@@ -2,93 +2,107 @@
 
 <img src="Assets/AudioMe.png" alt="Audio Me AM logo" width="96">
 
-**A compact Windows tray utility for switching speakers, microphones, and saved audio profiles.**
+**A glassy little Windows tray app for switching speakers, microphones and saved audio profiles in one click.**
 
-Move between gaming, work, and casual listening without digging through Windows Sound settings. Choose a device or activate a profile that selects **one playback device and one recording device**. Audio Me sets and verifies the Windows **System, Media, and Calls** defaults; a profile does not combine several speakers.
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20Audio%20Me-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/justony5)
+[![Windows build](https://github.com/justony5/audio-me/actions/workflows/build.yml/badge.svg)](https://github.com/justony5/audio-me/actions/workflows/build.yml)
+![Public beta](https://img.shields.io/badge/status-public%20beta-19E3C6)
+![Windows 10/11 x64](https://img.shields.io/badge/Windows-10%20%7C%2011%20x64-0078D4?logo=windows)
 
-## Implemented features — free
+Move between gaming, work and casual listening without digging through Windows Sound settings. Pick a device, or activate a profile that selects **one playback device and one microphone**. Audio Me sets and verifies the Windows **System, Media and Calls** defaults for you.
 
-- **Manual playback and microphone switching**, with availability checks, verification of all requested roles, and attempts to restore previous defaults on failure.
-- **Profiles inside the main window:** create, rename, edit, delete, and manually activate named setups. No separate management window.
-- **Clear profile status:** a read-only Active profile field shows only setups matching all six defaults and clears for custom combinations. Saved profiles remain available as “Use [name]” buttons; the matching profile gains a checkmark. Disconnected profiles remain visible with missing-device explanations.
-- **Favorites:** gold stars sort favorites alphabetically at the top. Local display aliases keep long hardware names manageable; full hardware names remain in tooltips.
-- **Other devices:** move connected but less-used hardware into a collapsible section with the down arrow; use the up arrow to restore it. This is separate from disconnected profile status.
-- **Compact role indicators:** computer, disc and phone icons beside each device show System, Media and Calls. Green means that role is active; grey means inactive. Tooltips and accessible names describe each role. Bordered lists and spaced section headings distinguish Playback from Microphone.
-- **System-themed title bar:** follows the Windows app light/dark preference and responds to theme-change notifications on supported Windows versions. The utility's charcoal content theme is retained.
-- **Tray access and taskbar reopening**, keep-on-top, remembered window size, and optional startup with Windows for the current user.
-- **Background switching and verification** keep the window responsive; status messages report success, failure, and restoration problems.
-- **Settings recovery:** unreadable or invalid settings are left untouched, saving is paused, and an explicit recovery action backs up the original before allowing a reset. Normal saves retain the previous file as a backup.
-- **Keyboard navigation and accessible control names** are included in the free app.
+<table>
+  <tr>
+    <td width="58%"><img src="docs/screenshots/main.png" alt="Audio Me main window with the active Gaming profile, profile tiles and playback devices on a frosted glass background"></td>
+    <td><img src="docs/screenshots/flyout.png" alt="Tray quick-switch flyout with profile tiles and playback and microphone pickers"><br><br><sub><b>Tray flyout.</b> Left-click the tray icon to switch profiles or devices without opening the full window.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <img src="docs/screenshots/settings.png" alt="Settings page with accent color, window options, planned premium features and About" width="49%">
+      <img src="docs/screenshots/editor.png" alt="Profile editor with name, icon picker, playback and microphone choices" width="49%">
+    </td>
+  </tr>
+</table>
 
-No accounts, payments, subscriptions, production licensing, microphone recording, or telemetry are implemented.
+<sub>Screenshots use demo devices over a stand-in wallpaper. The glass picks up whatever is behind the window on your desktop.</sub>
 
-## Planned premium features — not implemented
+## What's new in 1.2
 
-Everyday manual switching and the features above remain free. Future premium work is reserved for:
+- **Windows 11 glass design.** Frosted acrylic surfaces, rounded cards, smooth hover and page animations, and a custom title bar.
+- **"Now" card.** Shows the active profile (or *Custom setup*) and the current speaker and microphone at a glance.
+- **Profile tiles.** One click to switch. The active tile glows. Disconnected profiles dim with a ⚠ and explain why on hover. With more than three profiles, the row scrolls sideways (mouse wheel works too) on a scrollbar in the app's accent color.
+- **Tray quick-switch flyout.** Left-click the tray icon. Right-click still opens the classic menu.
+- **Accent color.** Audio Me teal by default, or **Match Windows** to follow the accent in *Settings → Personalization → Colors*. It updates live when you change it, and text contrast adjusts automatically.
+- **Profile icons.** Choose one of eight icons, or let Audio Me suggest one from the name.
 
-- Global shortcuts that select devices or profiles.
-- Shortcuts to cycle through selected devices or profiles.
-- Application-based profile activation when a selected app launches or becomes active.
-- Optional restoration of the previous setup when an application trigger ends.
+## Free features
 
-These are roadmap items, not capabilities in this build. Basic Tab/Shift+Tab navigation and accessibility will remain free.
+- **Manual playback and microphone switching**, with availability checks, verification of all requested roles, and attempts to restore the previous defaults on failure.
+- **Profiles:** create, rename, edit, delete and activate named setups from the main window, the tray flyout or the tray menu.
+- **Clear status:** the Now card names a profile only when all six defaults match it. Otherwise it shows *Custom setup*. Disconnected profiles stay visible with a missing-device explanation, and Audio Me never substitutes another device.
+- **Favorites and aliases:** ★ sorts favorites to the top. ⋯ → *Rename label* sets a local display name (the full hardware name stays in tooltips).
+- **Other devices:** ⋯ → *Move to Other devices* tucks less-used hardware into a collapsible section.
+- **Role chips:** monitor, music and phone icons beside each device show which of System, Media and Calls it holds, with tooltips and accessible names.
+- **Tray access**, keep-on-top pin, remembered window size, and optional startup with Windows for the current user.
+- **Settings recovery:** unreadable settings are never overwritten. Saving pauses until you choose *Back up original and reset*.
+- **Keyboard navigation and screen-reader names** throughout, with Esc to go back.
+
+No accounts, payments, telemetry or microphone recording.
+
+## Premium roadmap (planned, not in this build)
+
+Everyday manual switching stays free. Planned premium features:
+
+- **Keyboard shortcuts** to switch or cycle devices and profiles from anywhere.
+- **Switch when an app opens:** activate a profile when a game or call app starts, and optionally restore afterwards.
+- **Play through two devices:** mirror audio to, for example, headphones and speakers at once (beta; Bluetooth latency means the two outputs won't be perfectly in sync).
+
+A free option to send **calls to a different device** than system and media audio is planned as well.
+
+## Download and run
+
+Requires **Windows 10/11 x64 and .NET Framework 4.8** (included with Windows 11). The glass effect needs Windows 11 22H2 or later with *Transparency effects* on. Otherwise Audio Me uses a solid dark surface.
+
+1. Download the latest `AudioMe-*-win-x64.zip` from [Releases](https://github.com/justony5/audio-me/releases), or from the newest successful [Windows build](https://github.com/justony5/audio-me/actions/workflows/build.yml) run (*Artifacts*).
+2. Extract it and run `AudioMe.exe`. No installer or administrator access is needed.
+3. The build is **unsigned**, so Windows SmartScreen may show *Windows protected your PC*. Choose *More info → Run anyway* if you trust the download. Each release includes a SHA-256 checksum.
+
+Closing the window hides it to the tray. Left-click the tray icon for the flyout. Right-click it for profiles and **Exit**. `--tray` starts hidden. Settings live at `%LOCALAPPDATA%\AudioSwitch\settings.xml` (the old folder name is kept for compatibility).
 
 ## Using profiles
 
-1. Select **Create profile** near the top. The editor expands inside the main window.
-2. Enter a name such as **FPS Gaming**, **Work**, or **Casual** and explicitly select its playback device and microphone.
-3. Select **Save profile**, then click the profile's name to activate it.
-4. Use its **Edit** button to rename it, change either device, or delete it. **Edit profiles** also opens the editor.
+1. Select **New** in the profile row, or **Edit** to manage existing profiles.
+2. Enter a name such as **Gaming**, **Work** or **Music**, pick an icon, and explicitly choose its playback device and microphone.
+3. Select **Save profile**, then click its tile (in the window or the tray flyout) to switch.
 
-An unavailable profile cannot be activated. Its missing-device explanation remains visible, and editing it retains the saved device reference. Reconnecting the same endpoint makes it available again. Audio Me never silently substitutes another microphone or speaker. Selecting individual devices clears the Active profile field whenever the new combination no longer matches a saved profile; it does not delete saved profiles or change an open editor's draft.
-
-Old saved groups migrate automatically to profiles using the same stored endpoint IDs. Favorites, Other devices preferences, pin state, and window size remain compatible.
-
-## Run
-
-The top menu bar provides **File**, **Preferences**, and **Help**. **Help → About Audio Me** shows the running version and developer, **Justin Miller**; the version also appears in the title bar. Profile import/export and premium keyboard shortcuts/application bindings are disabled entries marked **Planned**, not implemented features. File also provides Hide to tray and Exit.
-
-Requires **Windows 10/11 x64 and .NET Framework 4.8**. Windows 11 includes the runtime. Extract a portable ZIP and open `AudioMe.exe`; no installer or administrator access is required. The icon is embedded, so the EXE can be moved by itself.
-
-- Closing the window hides it to the tray. Launch it again or use its tray icon to reopen it. Right-click the tray icon and select **Exit** to quit; exit is deferred while switching is in progress.
-- Right-click the tray icon to activate a saved profile directly. The active profile is checked; unavailable profiles are disabled with a missing-device tooltip. Profile switching uses the same availability, verification and restoration safeguards as the main window. Switching feedback appears as a tray notification while the window is hidden (subject to Windows notification settings).
-- `--tray` starts it hidden. **Start with Windows** writes a current-user startup entry pointing to this EXE. If you move it, turn that option off and on from its new location.
-- Settings live at `%LOCALAPPDATA%\AudioSwitch\settings.xml`; the old folder name is retained for compatibility. The app is portable to run, but preferences are stored per user outside the EXE folder.
-- On a settings-load failure, preserve or repair the original file before restarting, or choose **Back up original and reset**. Its recovery backup path is reported after reset. Normal saves keep `settings.xml.bak`.
+Right-click a tile to edit it. An unavailable profile can't be activated. Editing it keeps the saved device reference until you choose a replacement. Reconnecting the same endpoint makes it available again.
 
 ## Compatibility and limitations
 
-- Apps with explicitly selected audio devices can ignore Windows defaults. Some existing sessions require reselection or restart. Audio Me does not override per-app routing or restart apps.
+- Apps that select their own audio device can ignore Windows defaults. Some sessions need reselecting or restarting.
 - Switching uses the undocumented Windows PolicyConfig interface. Discovery and verification use public Core Audio APIs. Windows updates may require compatibility fixes.
-- Pair changes are sequential OS operations, not an atomic transaction. Restoration is attempted and verified, but cannot be guaranteed if a device disappears or Windows rejects a call.
-- Device status is polled every two seconds; availability is checked again by the switching service before changing defaults.
-- Aliases are local labels, not driver or Windows device renames. Driver reinstalls or USB-port changes can produce new endpoint IDs; edit affected profiles explicitly.
-- The UI is system-DPI aware. Exit and reopen after moving between monitors with different scaling or changing display scaling. True per-monitor DPI transitions are not implemented. Small windows scroll; full names and long availability reasons are in tooltips.
-- Builds are **unsigned**. No signing service has been purchased and no public release has been published as part of this update.
+- Pair changes are sequential operations, not a single transaction. Restoration is attempted and verified, but can't be guaranteed if a device disappears.
+- Device status is polled every two seconds.
+- The UI is system-DPI aware. Reopen after changing display scaling.
 
 ## Build and validate
 
 From PowerShell in the repository directory:
 
 ```powershell
-.\build.ps1       # Windows Framework compiler; no NuGet or .NET SDK required
-.\test.ps1        # Connection, preference, migration and settings-recovery tests
-.\test-ui.ps1     # Fake-device UI tests and rendered layouts; no live default changes
-.\release.ps1     # Local portable ZIP and SHA-256 checksum in dist/; does not publish
+.\build.ps1                                  # .NET Framework compiler; no SDK or NuGet required
+.\test.ps1                                   # Connection, preference, migration and settings-recovery tests
+.\test-ui.ps1                                # Fake-device UI checks; renders layouts to bin\ui-validation
+.\test-ui.ps1 -Screenshots docs\screenshots  # Regenerates README screenshots (briefly shows windows)
+.\release.ps1                                # Portable ZIP + SHA-256 in dist\ (does not publish)
 ```
 
-Exit a running copy before rebuilding. `AudioMe.csproj` supports Visual Studio/MSBuild with the .NET Framework 4.8 developer pack. `build.ps1` is the canonical release build and rebuilds `AudioSwitch.exe` for legacy shortcuts.
+Exit a running copy before rebuilding. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
-The GitHub Windows workflow builds, runs source-level tests, and packages downloadable artifacts on pushes and pull requests. UI rendering checks run separately on an interactive Windows desktop. Binaries, diagnostic reports, local settings and test screenshots are excluded from Git.
+## Support
 
-Tests cover settings migration/recovery, six-role profile matching, missing endpoints and reconnection, offline edits without substitution, preferences/window dimensions, keyboard focus, and responsiveness/failure feedback with a fake service. Layouts were rendered at 440×480, 480×660, and 720×900 client sizes and with simulated 150%/200% control scaling. Simulated scaling does not verify real monitor DPI transitions.
+Audio Me is free and built in spare time. If it saves you a trip to Sound settings, you can [**buy me a coffee ☕**](https://buymeacoffee.com/justony5). Bug reports and ideas are welcome in [Issues](https://github.com/justony5/audio-me/issues).
 
-**Hardware validation still required:** Bluetooth transitions, USB/HDMI disconnects during switching, sleep/resume, app-specific routing, real failed-switch restoration, and assistive-technology testing. With permission, the profile-to-custom transition was also checked using live playback switching and the original setup was restored. See the [beta checklist](docs/BETA-CHECKLIST.md).
+## License
 
-## Development and distribution
-
-See [architecture and premium boundaries](docs/ARCHITECTURE.md). The next recommended step is a hardware beta pass and real multi-monitor/accessibility testing before adding premium automation.
-
-The repository remains private. No open-source license is granted; choose licensing and distribution terms before a public beta. Source and portable packages retain only assets used by the app plus the logo source and notes.
-
-API references: [Windows device roles](https://learn.microsoft.com/en-us/windows/win32/coreaudio/device-roles), [GetDefaultAudioEndpoint](https://learn.microsoft.com/en-us/windows/win32/api/mmdeviceapi/nf-mmdeviceapi-immdeviceenumerator-getdefaultaudioendpoint), [PolicyConfig interface declaration](https://github.com/amate/SetDefaultAudioDevice/blob/master/PolicyConfig.h).
+The free app is released under the [MIT License](LICENSE). Future premium features will be developed separately.

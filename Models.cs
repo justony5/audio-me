@@ -9,6 +9,8 @@ namespace AudioSwitch {
     public class Profile {
         public string Name; public string Output; public string Input;
         public string OutputName; public string InputName;
+        // Tile icon key; empty means one is suggested from the profile name.
+        public string Icon;
         [XmlAnyElement] public XmlElement[] Extra;
         public override string ToString() { return Name; }
     }
@@ -20,6 +22,8 @@ namespace AudioSwitch {
         public List<string> Deemphasized = new List<string>();
         public List<DeviceAlias> Aliases = new List<DeviceAlias>();
         public int WindowWidth; public int WindowHeight;
+        // "Teal" (default) or "Windows" to follow the system accent color.
+        public string Accent;
         [XmlAnyElement] public XmlElement[] Extra;
         public int DeviceRank(string id) { return Deemphasized.Contains(id) ? 2 : Favorites.Contains(id) ? 0 : 1; }
         public void ToggleDevice(string id, bool favorite) {
